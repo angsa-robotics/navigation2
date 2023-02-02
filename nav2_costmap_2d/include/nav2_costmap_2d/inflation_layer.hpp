@@ -150,12 +150,13 @@ public:
     unsigned char cost = 0;
     if (distance == 0) {
       cost = LETHAL_OBSTACLE;
-    } else if (distance * resolution_ <= inscribed_radius_) {
+    } else if (inscribe_ and distance * resolution_ <= inscribed_radius_) {
       cost = INSCRIBED_INFLATED_OBSTACLE;
     } else {
       // make sure cost falls off by Euclidean distance
+      double inscribed_offset = inscribe_ ? inscribed_radius_ : 0.0;
       double factor =
-        exp(-1.0 * cost_scaling_factor_ * (distance * resolution_ - inscribed_radius_));
+        exp(-1.0 * cost_scaling_factor_ * (distance * resolution_ - inscribed_offset));
       cost = static_cast<unsigned char>((INSCRIBED_INFLATED_OBSTACLE - 1) * factor);
     }
     return cost;
@@ -245,7 +246,7 @@ protected:
   dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
 
   double inflation_radius_, inscribed_radius_, cost_scaling_factor_;
-  bool inflate_unknown_, inflate_around_unknown_;
+  bool inscribe_, inflate_unknown_, inflate_around_unknown_;
   unsigned int cell_inflation_radius_;
   unsigned int cached_cell_inflation_radius_;
   std::vector<std::vector<CellData>> inflation_cells_;
