@@ -58,6 +58,7 @@ public:
   }
 
 private:
+  bool initialized_ = false;
   geometry_msgs::msg::PoseStamped goal_;
   std::vector<geometry_msgs::msg::PoseStamped> goals_;
 };
