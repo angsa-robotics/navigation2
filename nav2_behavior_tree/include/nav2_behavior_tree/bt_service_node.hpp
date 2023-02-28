@@ -79,12 +79,12 @@ public:
       service_name_.c_str());
     if (!service_client_->wait_for_service(5s)) {
       RCLCPP_ERROR(
-        node_->get_logger(), "\"%s\" service server not available after waiting for 5 s",
-        service_node_name.c_str());
+        node_->get_logger(), "\"%s\" service server on \"%s\" not available after waiting for 5 s",
+        service_node_name.c_str(), service_name_.c_str());
       throw std::runtime_error(
               std::string(
                 "Service server %s not available",
-                service_node_name.c_str()));
+                service_name_.c_str()));
     }
 
     RCLCPP_DEBUG(
