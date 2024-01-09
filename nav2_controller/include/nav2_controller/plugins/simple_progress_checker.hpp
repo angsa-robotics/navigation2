@@ -59,7 +59,7 @@ protected:
 
   rclcpp::Clock::SharedPtr clock_;
 
-  double required_radius_;
+  double radius_;
   double required_angle_;
   rclcpp::Duration time_allowance_{0, 0};
 
