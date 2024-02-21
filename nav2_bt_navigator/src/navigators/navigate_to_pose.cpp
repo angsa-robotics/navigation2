@@ -18,7 +18,6 @@
 #include <memory>
 #include <limits>
 #include "nav2_bt_navigator/navigators/navigate_to_pose.hpp"
-#include "behaviortree_cpp_v3/loggers/bt_cout_logger.h"
 
 namespace nav2_bt_navigator
 {
@@ -28,12 +27,6 @@ NavigateToPoseNavigator::configure(
   rclcpp_lifecycle::LifecycleNode::WeakPtr parent_node,
   std::shared_ptr<nav2_util::OdomSmoother> odom_smoother)
 {
-
-  std::shared_ptr<BT::StdCoutLogger> logger_cout_;
-  logger_cout_ = std::make_shared<BT::StdCoutLogger>(bt_action_server_->getTree());
-  logger_cout_->setEnabled(true);
-  logger_cout_->enableTransitionToIdle(true);
-
   start_time_ = rclcpp::Time(0);
   auto node = parent_node.lock();
 
@@ -101,6 +94,9 @@ NavigateToPoseNavigator::goalReceived(ActionT::Goal::ConstSharedPtr goal)
       bt_xml_filename.c_str());
     return false;
   }
+  logger_cout_ = std::make_shared<BT::StdCoutLogger>(bt_action_server_->getTree());
+  logger_cout_->setEnabled(true);
+  logger_cout_->enableTransitionToIdle(true);
 
   initializeGoalPose(goal);
 
