@@ -45,6 +45,11 @@ NavigateThroughPosesNavigator::configure(
   // Odometry smoother object for getting current speed
   odom_smoother_ = odom_smoother;
 
+  behavior_tree_publisher_ = node->create_publisher<nav2_msgs::msg::BehaviorTree>(
+    "~/navigate_through_poses/behavior_tree",
+    rclcpp::SystemDefaultsQoS());
+  behavior_tree_publisher_->on_activate();
+
   return true;
 }
 
@@ -82,8 +87,48 @@ NavigateThroughPosesNavigator::goalReceived(ActionT::Goal::ConstSharedPtr goal)
   }
 
   initializeGoalPoses(goal);
+  publishTreeRecursively(bt_xml_filename);
 
   return true;
+}
+
+void NavigateToPoseNavigator::publishTreeRecursively(std::string bt_xml_filename)
+{
+  auto& tree = bt_action_server_->getTree();
+  const BT::TreeNode * root_node = tree.rootNode();
+  nav2_msgs::msg::BehaviorTree to_send_log_msg_var = nav2_msgs::msg::BehaviorTree();
+  nav2_msgs::msg::BehaviorTree * to_send_log_msg = &to_send_log_msg_var;
+
+  to_send_log_msg->name = bt_xml_filename;
+
+  std::function<void(unsigned, const BT::TreeNode *)> recursivePublish;
+
+  recursivePublish =
+    [&recursivePublish, &to_send_log_msg](unsigned parent_uid,
+      const BT::TreeNode * node) {
+
+      if (!node) {
+        return;
+      }
+
+      nav2_msgs::msg::BehaviorTreeNode node_msg = nav2_msgs::msg::BehaviorTreeNode();
+      node_msg.name = node->name();
+      node_msg.uid = node->UID();
+      node_msg.parent_uid = parent_uid;
+      to_send_log_msg->nodes.push_back(node_msg);
+
+      if (auto control = dynamic_cast<const BT::ControlNode *>(node)) {
+        for (const auto & child : control->children()) {
+          recursivePublish(node->UID(), child);
+        }
+      } else if (auto decorator = dynamic_cast<const BT::DecoratorNode *>(node)) {
+        recursivePublish(node->UID(), decorator->child());
+      }
+    };
+
+  recursivePublish(0, root_node);
+
+  behavior_tree_publisher_->publish(*to_send_log_msg);
 }
 
 void
