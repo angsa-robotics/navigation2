@@ -92,7 +92,7 @@ NavigateThroughPosesNavigator::goalReceived(ActionT::Goal::ConstSharedPtr goal)
   return true;
 }
 
-void NavigateToPoseNavigator::publishTreeRecursively(std::string bt_xml_filename)
+void NavigateThroughPosesNavigator::publishTreeRecursively(std::string bt_xml_filename)
 {
   auto& tree = bt_action_server_->getTree();
   const BT::TreeNode * root_node = tree.rootNode();

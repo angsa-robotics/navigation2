@@ -24,6 +24,8 @@
 #include "nav2_bt_navigator/navigator.hpp"
 #include "nav2_msgs/action/navigate_through_poses.hpp"
 #include "nav_msgs/msg/path.hpp"
+#include "nav2_msgs/msg/behavior_tree_node.hpp"
+#include "nav2_msgs/msg/behavior_tree.hpp"
 #include "nav2_util/robot_utils.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "nav2_util/odometry_utils.hpp"
@@ -80,6 +82,9 @@ protected:
    */
   bool goalReceived(ActionT::Goal::ConstSharedPtr goal) override;
 
+  void publishTreeRecursively(std::string bt_xml_filename);
+
+
   /**
    * @brief A callback that defines execution that happens on one iteration through the BT
    * Can be used to publish action feedback
@@ -113,6 +118,7 @@ protected:
 
   // Odometry smoother object
   std::shared_ptr<nav2_util::OdomSmoother> odom_smoother_;
+  rclcpp_lifecycle::LifecyclePublisher<nav2_msgs::msg::BehaviorTree>::SharedPtr behavior_tree_publisher_;
 };
 
 }  // namespace nav2_bt_navigator
