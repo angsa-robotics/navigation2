@@ -54,7 +54,7 @@ NavigateToPoseNavigator::configure(
 
   behavior_tree_publisher_ = node->create_publisher<nav2_msgs::msg::BehaviorTree>(
     "~/navigate_to_pose/behavior_tree",
-    rclcpp::SystemDefaultsQoS());
+    rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable());
   behavior_tree_publisher_->on_activate();
   return true;
 }
@@ -76,6 +76,8 @@ NavigateToPoseNavigator::getDefaultBTFilepath(
   }
 
   node->get_parameter("default_nav_to_pose_bt_xml", default_bt_xml_filename);
+
+  default_bt_xml_filename_ = default_bt_xml_filename;
 
   return default_bt_xml_filename;
 }
@@ -102,48 +104,44 @@ NavigateToPoseNavigator::goalReceived(ActionT::Goal::ConstSharedPtr goal)
   }
 
   initializeGoalPose(goal);
-  publishTreeRecursively(bt_xml_filename);
+  publishTree(bt_xml_filename.empty() ? default_bt_xml_filename_ : bt_xml_filename);
 
   return true;
 }
 
-void NavigateToPoseNavigator::publishTreeRecursively(std::string bt_xml_filename)
+void NavigateToPoseNavigator::publishTree(std::string& bt_xml_filename)
 {
-  auto& tree = bt_action_server_->getTree();
-  const BT::TreeNode * root_node = tree.rootNode();
-  nav2_msgs::msg::BehaviorTree to_send_log_msg_var = nav2_msgs::msg::BehaviorTree();
-  nav2_msgs::msg::BehaviorTree * to_send_log_msg = &to_send_log_msg_var;
+    const BT::TreeNode* root_node = bt_action_server_->getTree().rootNode();
 
-  to_send_log_msg->name = bt_xml_filename;
+  auto behavior_tree_msg = std::make_shared<nav2_msgs::msg::BehaviorTree>();
+  behavior_tree_msg->name = bt_xml_filename;
 
-  std::function<void(unsigned, const BT::TreeNode *)> recursivePublish;
+  std::function<void(unsigned, const BT::TreeNode*)> recursivePublish;
 
   recursivePublish =
-    [&recursivePublish, &to_send_log_msg](unsigned parent_uid,
-      const BT::TreeNode * node) {
-
+    [this, &recursivePublish, &behavior_tree_msg](unsigned parent_uid, const BT::TreeNode* node) {
       if (!node) {
         return;
       }
 
-      nav2_msgs::msg::BehaviorTreeNode node_msg = nav2_msgs::msg::BehaviorTreeNode();
+      nav2_msgs::msg::BehaviorTreeNode node_msg;
       node_msg.name = node->name();
       node_msg.uid = node->UID();
       node_msg.parent_uid = parent_uid;
-      to_send_log_msg->nodes.push_back(node_msg);
+      behavior_tree_msg->nodes.emplace_back(node_msg);
 
-      if (auto control = dynamic_cast<const BT::ControlNode *>(node)) {
-        for (const auto & child : control->children()) {
+      if (const auto control = dynamic_cast<const BT::ControlNode*>(node)) {
+        for (const auto& child : control->children()) {
           recursivePublish(node->UID(), child);
         }
-      } else if (auto decorator = dynamic_cast<const BT::DecoratorNode *>(node)) {
+      } else if (const auto decorator = dynamic_cast<const BT::DecoratorNode*>(node)) {
         recursivePublish(node->UID(), decorator->child());
       }
     };
 
   recursivePublish(0, root_node);
 
-  behavior_tree_publisher_->publish(*to_send_log_msg);
+  behavior_tree_publisher_->publish(*behavior_tree_msg);
 }
 
 void

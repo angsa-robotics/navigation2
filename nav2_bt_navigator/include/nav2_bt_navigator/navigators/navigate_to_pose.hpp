@@ -93,7 +93,7 @@ protected:
    */
   bool goalReceived(ActionT::Goal::ConstSharedPtr goal) override;
 
-  void publishTreeRecursively(std::string bt_xml_filename);
+  void publishTree(std::string& bt_xml_filename);
 
   /**
    * @brief A callback that defines execution that happens on one iteration through the BT
@@ -131,6 +131,7 @@ protected:
 
   std::string goal_blackboard_id_;
   std::string path_blackboard_id_;
+  std::string default_bt_xml_filename_;
 
   // Odometry smoother object
   std::shared_ptr<nav2_util::OdomSmoother> odom_smoother_;
