@@ -211,6 +211,12 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
+# TODO: Remove when upgrading to Iron and later https://github.com/ros-planning/navigation2/pull/3372
+# This is to allow using the hpp files in test/ in our own packages
+install(DIRECTORY test/
+  DESTINATION include/${PROJECT_NAME}
+)
+
 install(FILES nav2_tree_nodes.xml DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
