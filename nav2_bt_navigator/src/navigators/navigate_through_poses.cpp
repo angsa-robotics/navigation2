@@ -81,9 +81,11 @@ NavigateThroughPosesNavigator::goalReceived(ActionT::Goal::ConstSharedPtr goal)
     return false;
   }
 
-  logger_cout_ = std::make_shared<BT::StdCoutLogger>(bt_action_server_->getTree());
-  logger_cout_->setEnabled(true);
-  logger_cout_->enableTransitionToIdle(true);
+  if (!logger_cout_) {
+    logger_cout_ = std::make_shared<BT::StdCoutLogger>(bt_action_server_->getTree());
+    logger_cout_->setEnabled(true);
+    logger_cout_->enableTransitionToIdle(true);
+  }
 
   initializeGoalPoses(goal);
 
