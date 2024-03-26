@@ -45,6 +45,7 @@ NavigateToPoseNavigator::configure(
   odom_smoother_ = odom_smoother;
 
   self_client_ = rclcpp_action::create_client<ActionT>(node, getName());
+  snapshot_client_ = node->create_client<rosbag2_interfaces::srv::Snapshot>("/rosbag2_recorder/snapshot");
 
   goal_sub_ = node->create_subscription<geometry_msgs::msg::PoseStamped>(
     "goal_pose",
@@ -145,8 +146,15 @@ void NavigateToPoseNavigator::publishTree(std::string& bt_xml_filename)
 void
 NavigateToPoseNavigator::goalCompleted(
   typename ActionT::Result::SharedPtr /*result*/,
-  const nav2_behavior_tree::BtStatus /*final_bt_status*/)
+  const nav2_behavior_tree::BtStatus final_bt_status)
 {
+  if (final_bt_status == nav2_behavior_tree::BtStatus::FAILED || 
+  final_bt_status == nav2_behavior_tree::BtStatus::CANCELED || 
+  final_bt_status == nav2_behavior_tree::BtStatus::SUCCEEDED) {
+    rosbag2_interfaces::srv::Snapshot::Request::SharedPtr request =
+      std::make_shared<rosbag2_interfaces::srv::Snapshot::Request>();
+    snapshot_client_->async_send_request(request);
+  }
 }
 
 void

@@ -49,6 +49,7 @@ NavigateThroughPosesNavigator::configure(
     "~/navigate_through_poses/behavior_tree",
     rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable());
   behavior_tree_publisher_->on_activate();
+  snapshot_client_ = node->create_client<rosbag2_interfaces::srv::Snapshot>("/rosbag2_recorder/snapshot");
 
   return true;
 }
@@ -130,8 +131,15 @@ void NavigateThroughPosesNavigator::publishTree(std::string &bt_xml_filename) {
 void
 NavigateThroughPosesNavigator::goalCompleted(
   typename ActionT::Result::SharedPtr /*result*/,
-  const nav2_behavior_tree::BtStatus /*final_bt_status*/)
+  const nav2_behavior_tree::BtStatus final_bt_status)
 {
+  if (final_bt_status == nav2_behavior_tree::BtStatus::FAILED || 
+  final_bt_status == nav2_behavior_tree::BtStatus::CANCELED || 
+  final_bt_status == nav2_behavior_tree::BtStatus::SUCCEEDED) {
+    rosbag2_interfaces::srv::Snapshot::Request::SharedPtr request =
+      std::make_shared<rosbag2_interfaces::srv::Snapshot::Request>();
+    snapshot_client_->async_send_request(request);
+  }
 }
 
 void
