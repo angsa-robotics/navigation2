@@ -30,6 +30,7 @@
 #include "nav2_msgs/msg/behavior_tree.hpp"
 #include "nav2_util/odometry_utils.hpp"
 #include "rosbag2_interfaces/srv/snapshot.hpp"
+#include "rosbag2_interfaces/srv/split_bagfile.hpp"
 
 namespace nav2_bt_navigator
 {
@@ -131,6 +132,7 @@ protected:
   rclcpp_lifecycle::LifecyclePublisher<nav2_msgs::msg::BehaviorTree>::SharedPtr behavior_tree_publisher_;
   rclcpp_action::Client<ActionT>::SharedPtr self_client_;
   rclcpp::Client<rosbag2_interfaces::srv::Snapshot>::SharedPtr snapshot_client_;
+  rclcpp::Client<rosbag2_interfaces::srv::SplitBagfile>::SharedPtr split_client_;
 
   std::string goal_blackboard_id_;
   std::string path_blackboard_id_;

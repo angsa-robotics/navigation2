@@ -50,6 +50,7 @@ NavigateThroughPosesNavigator::configure(
     rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable());
   behavior_tree_publisher_->on_activate();
   snapshot_client_ = node->create_client<rosbag2_interfaces::srv::Snapshot>("/rosbag2_recorder/snapshot");
+  split_client_ = node->create_client<rosbag2_interfaces::srv::SplitBagfile>("/rosbag2_recorder/split_bagfile");
 
   return true;
 }
@@ -136,9 +137,13 @@ NavigateThroughPosesNavigator::goalCompleted(
   if (final_bt_status == nav2_behavior_tree::BtStatus::FAILED || 
   final_bt_status == nav2_behavior_tree::BtStatus::CANCELED || 
   final_bt_status == nav2_behavior_tree::BtStatus::SUCCEEDED) {
-    rosbag2_interfaces::srv::Snapshot::Request::SharedPtr request =
+    rosbag2_interfaces::srv::Snapshot::Request::SharedPtr snapshot_request =
       std::make_shared<rosbag2_interfaces::srv::Snapshot::Request>();
-    snapshot_client_->async_send_request(request);
+    rosbag2_interfaces::srv::SplitBagfile::Request::SharedPtr split_request =
+      std::make_shared<rosbag2_interfaces::srv::SplitBagfile::Request>();
+
+    snapshot_client_->async_send_request(snapshot_request); // TODO: make sure this finishes first
+    split_client_->async_send_request(split_request);
   }
 }
 

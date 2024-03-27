@@ -30,6 +30,7 @@
 #include "nav2_util/geometry_utils.hpp"
 #include "nav2_util/odometry_utils.hpp"
 #include "rosbag2_interfaces/srv/snapshot.hpp"
+#include "rosbag2_interfaces/srv/split_bagfile.hpp"
 
 namespace nav2_bt_navigator
 {
@@ -123,6 +124,7 @@ protected:
   std::shared_ptr<nav2_util::OdomSmoother> odom_smoother_;
   rclcpp_lifecycle::LifecyclePublisher<nav2_msgs::msg::BehaviorTree>::SharedPtr behavior_tree_publisher_;
   rclcpp::Client<rosbag2_interfaces::srv::Snapshot>::SharedPtr snapshot_client_;
+  rclcpp::Client<rosbag2_interfaces::srv::SplitBagfile>::SharedPtr split_client_;
 };
 
 }  // namespace nav2_bt_navigator
