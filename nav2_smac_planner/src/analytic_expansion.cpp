@@ -41,7 +41,7 @@ AnalyticExpansion<NodeT>::AnalyticExpansion(
 
 template<typename NodeT>
 void AnalyticExpansion<NodeT>::setCollisionChecker(
-  GridCollisionChecker * & collision_checker)
+  GridCollisionChecker * collision_checker)
 {
   _collision_checker = collision_checker;
 }
@@ -180,7 +180,7 @@ typename AnalyticExpansion<NodeT>::AnalyticExpansionNodes AnalyticExpansion<Node
   float d = state_space->distance(from(), to());
 
   // A move of sqrt(2) is guaranteed to be in a new cell
-  static const float sqrt_2 = std::sqrt(2.0f);
+  static const float sqrt_2 = sqrtf(2.0f);
 
   // If the length is too far, exit. This prevents unsafe shortcutting of paths
   // into higher cost areas far out from the goal itself, let search to the work of getting
