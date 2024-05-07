@@ -54,6 +54,8 @@ void GridCollisionChecker::setFootprint(
   const double & possible_collision_cost)
 {
   possible_collision_cost_ = static_cast<float>(possible_collision_cost);
+  // print possible_collision_cost_
+  RCLCPP_INFO(logger_, "possible_collision_cost_: %f", possible_collision_cost_);
   footprint_is_radius_ = radius;
 
   // Use radius, no caching required
@@ -113,20 +115,27 @@ bool GridCollisionChecker::inCollision(
     // if the robot is even potentially in an inscribed collision
     footprint_cost_ = static_cast<float>(costmap_->getCost(
         static_cast<unsigned int>(x + 0.5f), static_cast<unsigned int>(y + 0.5f)));
-
-    if (footprint_cost_ < possible_collision_cost_) {
-      if (possible_collision_cost_ > 0.0f) {
-        return false;
-      } else {
-        RCLCPP_ERROR_THROTTLE(
-          logger_, *clock_, 1000,
-          "Inflation layer either not found or inflation is not set sufficiently for "
-          "optimized non-circular collision checking capabilities. It is HIGHLY recommended to set"
-          " the inflation radius to be at MINIMUM half of the robot's largest cross-section. See "
-          "github.com/ros-planning/navigation2/tree/main/nav2_smac_planner#potential-fields"
-          " for full instructions. This will substantially impact run-time performance.");
-      }
+    
+    if (footprint_cost_ == 0.0f) {
+      RCLCPP_ERROR(logger_, "cost is 0 at x: %u, y: %u corresponds to wx: %f, wy: %f", static_cast<unsigned int>(x + 0.5f), static_cast<unsigned int>(y + 0.5f), wx, wy);
     }
+
+    // if (footprint_cost_ < possible_collision_cost_) {
+    //   if (possible_collision_cost_ > 0.0f) {
+    //     RCLCPP_ERROR(
+    //       logger_,
+    //       "ROBOT NOT IN COLLISION AT ALL because %f < %f. ", footprint_cost_, possible_collision_cost_);
+    //     return false;
+    //   } else {
+    //     RCLCPP_ERROR_THROTTLE(
+    //       logger_, *clock_, 1000,
+    //       "Inflation layer either not found or inflation is not set sufficiently for "
+    //       "optimized non-circular collision checking capabilities. It is HIGHLY recommended to set"
+    //       " the inflation radius to be at MINIMUM half of the robot's largest cross-section. See "
+    //       "github.com/ros-planning/navigation2/tree/main/nav2_smac_planner#potential-fields"
+    //       " for full instructions. This will substantially impact run-time performance.");
+    //   }
+    // }
 
     // If its inscribed, in collision, or unknown in the middle,
     // no need to even check the footprint, its invalid
