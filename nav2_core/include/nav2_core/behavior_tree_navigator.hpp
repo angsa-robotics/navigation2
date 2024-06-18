@@ -128,7 +128,8 @@ public:
     const std::vector<std::string> & plugin_lib_names,
     const FeedbackUtils & feedback_utils,
     nav2_core::NavigatorMuxer * plugin_muxer,
-    std::shared_ptr<nav2_util::OdomSmoother> odom_smoother) = 0;
+    std::shared_ptr<nav2_util::OdomSmoother> odom_smoother,
+    std::shared_ptr<BT::StdCoutLogger> logger_cout_) = 0;
 
   /**
    * @brief Activation of the navigator's backend BT and actions
@@ -190,13 +191,15 @@ public:
     const std::vector<std::string> & plugin_lib_names,
     const FeedbackUtils & feedback_utils,
     nav2_core::NavigatorMuxer * plugin_muxer,
-    std::shared_ptr<nav2_util::OdomSmoother> odom_smoother) final
+    std::shared_ptr<nav2_util::OdomSmoother> odom_smoother,
+    std::shared_ptr<BT::StdCoutLogger> logger_cout) final
   {
     auto node = parent_node.lock();
     logger_ = node->get_logger();
     clock_ = node->get_clock();
     feedback_utils_ = feedback_utils;
     plugin_muxer_ = plugin_muxer;
+    logger_cout_ = logger_cout;
 
     // get the default behavior tree for this navigator
     std::string default_bt_xml_filename = getDefaultBTFilepath(parent_node);
@@ -296,7 +299,10 @@ protected:
     }
 
     bool goal_accepted = goalReceived(goal);
-
+    logger_cout_.reset();
+    logger_cout_ = std::make_shared<BT::StdCoutLogger>(bt_action_server_->getTree());
+    logger_cout_->enableTransitionToIdle(false);
+    logger_cout_->setEnabled(true); // enable to see BT logs
     if (goal_accepted) {
       plugin_muxer_->startNavigating(getName());
     }
@@ -313,6 +319,7 @@ protected:
   {
     plugin_muxer_->stopNavigating(getName());
     goalCompleted(result, final_bt_status);
+    logger_cout_.reset();
   }
 
   /**
@@ -371,6 +378,7 @@ protected:
   rclcpp::Clock::SharedPtr clock_;
   FeedbackUtils feedback_utils_;
   NavigatorMuxer * plugin_muxer_;
+  std::shared_ptr<BT::StdCoutLogger> logger_cout_;
 };
 
 }  // namespace nav2_core
