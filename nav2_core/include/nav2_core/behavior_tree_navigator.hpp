@@ -200,6 +200,10 @@ public:
     feedback_utils_ = feedback_utils;
     plugin_muxer_ = plugin_muxer;
     logger_cout_ = logger_cout;
+    if (!node->has_parameter("enable_cout_logger")) {
+      node->declare_parameter("enable_cout_logger", false);
+    }
+    enable_cout_logger_ = node->get_parameter("enable_cout_logger").as_bool();
 
     // get the default behavior tree for this navigator
     std::string default_bt_xml_filename = getDefaultBTFilepath(parent_node);
@@ -302,7 +306,7 @@ protected:
     logger_cout_.reset();
     logger_cout_ = std::make_shared<BT::StdCoutLogger>(bt_action_server_->getTree());
     logger_cout_->enableTransitionToIdle(false);
-    logger_cout_->setEnabled(true); // enable to see BT logs
+    logger_cout_->setEnabled(enable_cout_logger_);
     if (goal_accepted) {
       plugin_muxer_->startNavigating(getName());
     }
@@ -379,6 +383,7 @@ protected:
   FeedbackUtils feedback_utils_;
   NavigatorMuxer * plugin_muxer_;
   std::shared_ptr<BT::StdCoutLogger> logger_cout_;
+  bool enable_cout_logger_;
 };
 
 }  // namespace nav2_core
