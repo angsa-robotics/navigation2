@@ -20,6 +20,7 @@
 #include "gtest/gtest.h"
 #include "nav2_smac_planner/utils.hpp"
 #include "nav2_util/geometry_utils.hpp"
+#include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
 using namespace nav2_smac_planner;  // NOLINT
 
@@ -146,4 +147,18 @@ TEST(create_marker, test_createMarker)
   EXPECT_EQ(rclcpp::Time(marker2.header.stamp).nanoseconds(), 1e9);
   EXPECT_EQ(marker2.id, 8u);
   EXPECT_EQ(marker2.points.size(), 0u);
+}
+
+TEST(map_to_world_to_map, test_map_to_world_to_map)
+{
+  auto costmap = nav2_costmap_2d::Costmap2D(10.0, 10.0, 0.05, 0.0, 0.0, 0);
+
+  float mx = 200.0;
+  float my = 100.0;
+  geometry_msgs::msg::Pose pose = getWorldCoords(mx, my, &costmap);
+
+  float mx1, my1;
+  costmap.worldToMapContinuous(pose.position.x, pose.position.y, mx1, my1);
+  EXPECT_NEAR(mx, mx1, 1e-3);
+  EXPECT_NEAR(my, my1, 1e-3);
 }
