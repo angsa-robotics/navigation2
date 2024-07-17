@@ -249,7 +249,7 @@ bool BtActionServer<ActionT>::loadBehaviorTree(const std::string & bt_xml_filena
       }
       else {
         cached_trees_.erase(it);
-        RCLCPP_INFO(logger_, "Overriding previously cached BT: %s as its hash changed");
+        RCLCPP_INFO(logger_, "Overriding previously cached BT: %s as its hash changed", filename.c_str());
       }
       break;
     }
