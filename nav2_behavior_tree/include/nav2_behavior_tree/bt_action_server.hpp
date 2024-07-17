@@ -211,7 +211,8 @@ protected:
   // Behavior Tree to be executed when goal is received
   BT::Tree* tree_;
 
-  // First element is a pair of BT filename and BT xml hash, second is the tree itself
+  // Stores loaded Behavior Trees, their names and hashes
+  // std::map<filename, std::pair<hash, BT>>
   std::map<std::string, std::pair<size_t, BT::Tree>> cached_trees_;
 
   // The blackboard shared by all of the nodes in the tree

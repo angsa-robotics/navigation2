@@ -220,7 +220,6 @@ bool BtActionServer<ActionT>::loadBehaviorTree(const std::string & bt_xml_filena
   // Empty filename is default for backward compatibility
   auto filename = bt_xml_filename.empty() ? default_bt_xml_filename_ : bt_xml_filename;
 
-
   // Thich check is commented out in favor of the BT caching logic
   // Use previous BT if it is the existing one 
   // if (current_bt_xml_filename_ == filename) {
