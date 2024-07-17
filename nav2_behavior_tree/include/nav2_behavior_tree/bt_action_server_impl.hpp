@@ -220,24 +220,54 @@ bool BtActionServer<ActionT>::loadBehaviorTree(const std::string & bt_xml_filena
   // Empty filename is default for backward compatibility
   auto filename = bt_xml_filename.empty() ? default_bt_xml_filename_ : bt_xml_filename;
 
-  // Use previous BT if it is the existing one
-  if (current_bt_xml_filename_ == filename) {
-    RCLCPP_DEBUG(logger_, "BT will not be reloaded as the given xml is already loaded");
-    return true;
-  }
+
+  // Thich check is commented out in favor of the BT caching logic
+  // Use previous BT if it is the existing one 
+  // if (current_bt_xml_filename_ == filename) {
+  //   RCLCPP_DEBUG(logger_, "BT will not be reloaded as the given xml is already loaded");
+  //   return true;
+  // }
 
   // Read the input BT XML from the specified file into a string
+
+  tree_ = nullptr;
   std::ifstream xml_file(filename);
 
-  if (!xml_file.good()) {
-    RCLCPP_ERROR(logger_, "Couldn't open input XML file: %s", filename.c_str());
-    return false;
+  // Create hash from BT xml file
+  std::string xml_string = std::string(std::istreambuf_iterator<char>(xml_file), std::istreambuf_iterator<char>());
+  std::hash<std::string> hasher;
+  size_t xml_hash = hasher(xml_string);
+
+
+  // Check if we already have this BT in cache and use it
+  for(std::map<std::string, std::pair<size_t, BT::Tree>>::iterator it = cached_trees_.begin(); it != cached_trees_.end(); ++it) {
+    if (it->first == filename)
+    {
+      if (it->second.first == xml_hash)
+      {
+        RCLCPP_DEBUG(logger_, "BT exists in cache, will not reload");
+        tree_= &it->second.second;
+      }
+      else {
+        cached_trees_.erase(it);
+        RCLCPP_INFO(logger_, "Overriding previously cached BT: %s as its hash changed");
+      }
+      break;
+    }
   }
 
-  // Create the Behavior Tree from the XML input
   try {
-    tree_ = bt_->createTreeFromFile(filename, blackboard_);
-    for (auto & blackboard : tree_.blackboard_stack) {
+    if (tree_ == nullptr){
+      // BT with this same xml content was not found in cache. Loading
+      if (!xml_file.good()) {
+        RCLCPP_ERROR(logger_, "Couldn't open input XML file: %s", filename.c_str());
+        return false;
+      }
+      cached_trees_[filename].first = xml_hash;
+      cached_trees_[filename].second = bt_->createTreeFromFile(filename, blackboard_); 
+      tree_ = &cached_trees_[filename].second;
+    }
+    for (auto & blackboard : tree_->blackboard_stack) {
       blackboard->set("node", client_node_);
       blackboard->set<std::chrono::milliseconds>("server_timeout", default_server_timeout_);
       blackboard->set<std::chrono::milliseconds>("bt_loop_duration", bt_loop_duration_);
@@ -286,7 +316,7 @@ void BtActionServer<ActionT>::executeCallback()
     };
 
   // Execute the BT that was previously created in the configure step
-  nav2_behavior_tree::BtStatus rc = bt_->run(&tree_, on_loop, is_canceling, bt_loop_duration_);
+  nav2_behavior_tree::BtStatus rc = bt_->run(tree_, on_loop, is_canceling, bt_loop_duration_);
 
   // Make sure that the Bt is not in a running state from a previous execution
   // note: if all the ControlNodes are implemented correctly, this is not needed.

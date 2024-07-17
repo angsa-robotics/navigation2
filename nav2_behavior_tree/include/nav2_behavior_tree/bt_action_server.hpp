@@ -169,7 +169,7 @@ public:
    * @brief Getter function for the current BT tree
    * @return BT::Tree Current behavior tree
    */
-  const BT::Tree & getTree() const
+  const BT::Tree* getTree() const
   {
     return tree_;
   }
@@ -181,7 +181,7 @@ public:
    */
   void haltTree()
   {
-    tree_.haltTree();
+    tree_->haltTree();
   }
 
 protected:
@@ -209,7 +209,10 @@ protected:
   std::shared_ptr<ActionServer> action_server_;
 
   // Behavior Tree to be executed when goal is received
-  BT::Tree tree_;
+  BT::Tree* tree_;
+
+  // First element is a pair of BT filename and BT xml hash, second is the tree itself
+  std::map<std::string, std::pair<size_t, BT::Tree>> cached_trees_;
 
   // The blackboard shared by all of the nodes in the tree
   BT::Blackboard::Ptr blackboard_;

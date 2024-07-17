@@ -39,8 +39,8 @@ public:
    * @param ros_node Weak pointer to parent rclcpp::Node
    * @param tree BT to monitor
    */
-  RosTopicLogger(const rclcpp::Node::WeakPtr & ros_node, const BT::Tree & tree)
-  : StatusChangeLogger(tree.rootNode())
+  RosTopicLogger(const rclcpp::Node::WeakPtr & ros_node, const BT::Tree* tree)
+  : StatusChangeLogger(tree->rootNode())
   {
     auto node = ros_node.lock();
     clock_ = node->get_clock();

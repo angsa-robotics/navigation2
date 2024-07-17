@@ -94,7 +94,7 @@ NavigateThroughPosesNavigator::goalReceived(ActionT::Goal::ConstSharedPtr goal)
 }
 
 void NavigateThroughPosesNavigator::publishTree(std::string &bt_xml_filename) {
-  const BT::TreeNode* root_node = bt_action_server_->getTree().rootNode();
+  const BT::TreeNode* root_node = bt_action_server_->getTree()->rootNode();
 
   auto behavior_tree_msg = std::make_shared<nav2_msgs::msg::BehaviorTree>();
   behavior_tree_msg->name = bt_xml_filename;
