@@ -1,0 +1,92 @@
+// Copyright (c) 2024 Angsa Robotics
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <string>
+#include <memory>
+#include <limits>
+
+#include "nav2_behavior_tree/plugins/action/remove_in_collision_goals_action.hpp"
+#include "nav2_behavior_tree/bt_utils.hpp"
+#include "nav2_costmap_2d/cost_values.hpp"
+#include "tf2/utils.h"
+
+namespace nav2_behavior_tree
+{
+
+RemoveInCollisionGoals::RemoveInCollisionGoals(
+  const std::string & name,
+  const BT::NodeConfiguration & conf)
+: BT::ActionNodeBase(name, conf),
+  initialized_(false)
+{}
+
+void RemoveInCollisionGoals::initialize()
+{
+  node_ = config().blackboard->get<rclcpp::Node::SharedPtr>("node");
+  get_cost_client_ = node_->create_client<nav2_msgs::srv::GetCost>("local_costmap/get_cost_local_costmap");
+  server_timeout_ = config().blackboard->template get<std::chrono::milliseconds>("server_timeout");
+}
+
+inline BT::NodeStatus RemoveInCollisionGoals::tick()
+{
+  setStatus(BT::NodeStatus::RUNNING);
+
+  if (!initialized_) {
+    initialize();
+  }
+
+  Goals goal_poses;
+  getInput("input_goals", goal_poses);
+
+  if (goal_poses.empty()) {
+    setOutput("output_goals", goal_poses);
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  Goals valid_goal_poses;
+  for (const auto& goal : goal_poses) {
+    auto request = std::make_shared<nav2_msgs::srv::GetCost::Request>();
+    request->x = goal.pose.position.x;
+    request->y = goal.pose.position.y;
+    // request->theta = tf2::getYaw(goal.pose.orientation);
+    request->use_footprint = true;
+    
+    auto result = get_cost_client_->async_send_request(request);
+    auto ret = rclcpp::spin_until_future_complete(node_, result, server_timeout_);
+    
+    if (ret == rclcpp::FutureReturnCode::SUCCESS)
+    {
+      auto a = result.get()->cost;
+      RCLCPP_INFO(node_->get_logger(), "cost: %f", a);
+      if (a != nav2_costmap_2d::LETHAL_OBSTACLE) {
+        RCLCPP_INFO(node_->get_logger(), "Removing goal %f %f", goal.pose.position.x, goal.pose.position.y);
+        valid_goal_poses.push_back(goal);
+      }
+    }
+    else {
+      RCLCPP_ERROR(node_->get_logger(), "RemoveInCollisionGoals BT node failed to call GetCost service");
+      return BT::NodeStatus::FAILURE;
+    }
+  }
+  setOutput("output_goals", valid_goal_poses);
+  return BT::NodeStatus::SUCCESS;
+}
+
+}  // namespace nav2_behavior_tree
+
+#include "behaviortree_cpp_v3/bt_factory.h"
+BT_REGISTER_NODES(factory)
+{
+  factory.registerNodeType<nav2_behavior_tree::RemoveInCollisionGoals>("RemoveInCollisionGoals");
+}
