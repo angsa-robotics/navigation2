@@ -20,6 +20,7 @@
 #include "nav2_behavior_tree/bt_utils.hpp"
 #include "nav2_costmap_2d/cost_values.hpp"
 #include "tf2/utils.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 namespace nav2_behavior_tree
 {
@@ -65,7 +66,7 @@ inline BT::NodeStatus RemoveInCollisionGoals::tick()
     auto request = std::make_shared<nav2_msgs::srv::GetCost::Request>();
     request->x = goal.pose.position.x;
     request->y = goal.pose.position.y;
-    // request->theta = tf2::getYaw(goal.pose.orientation);
+    request->theta = tf2::getYaw(goal.pose.orientation);
     request->use_footprint = true;
 
     if (which_costmap_ == "global") {
