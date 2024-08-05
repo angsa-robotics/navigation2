@@ -45,6 +45,7 @@ public:
   {
     return {
       BT::InputPort<Goals>("input_goals", "Original goals to remove from"),
+      BT::InputPort<std::string>("costmap", "Which costmap to use for checking collision. Choices: local, global, both"),
       BT::OutputPort<Goals>("output_goals", "Goals with in-collision goals removed"),
     };
   }
@@ -55,7 +56,9 @@ private:
 
   rclcpp::Node::SharedPtr node_;
   bool initialized_;
-  rclcpp::Client<nav2_msgs::srv::GetCost>::SharedPtr get_cost_client_;
+  std::string which_costmap_;
+  rclcpp::Client<nav2_msgs::srv::GetCost>::SharedPtr get_global_cost_client_;
+  rclcpp::Client<nav2_msgs::srv::GetCost>::SharedPtr get_local_cost_client_;
   std::chrono::milliseconds server_timeout_;
 };
 
