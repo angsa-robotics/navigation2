@@ -30,7 +30,8 @@ RemoveInCollisionGoals::RemoveInCollisionGoals(
   const BT::NodeConfiguration & conf)
 : BT::ActionNodeBase(name, conf),
   initialized_(false),
-  which_costmap_("both")
+  which_costmap_("both"),
+  cost_threshold_(nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE)
 {}
 
 void RemoveInCollisionGoals::initialize()
@@ -52,6 +53,7 @@ inline BT::NodeStatus RemoveInCollisionGoals::tick()
   }
 
   getInput("costmap", which_costmap_);
+  getInput("cost_threshold", cost_threshold_);
 
   Goals goal_poses;
   getInput("input_goals", goal_poses);
@@ -73,7 +75,7 @@ inline BT::NodeStatus RemoveInCollisionGoals::tick()
       auto future_global = get_global_cost_client_->async_send_request(request);
       auto ret_global = rclcpp::spin_until_future_complete(node_, future_global, server_timeout_);
       if (ret_global == rclcpp::FutureReturnCode::SUCCESS) {
-        if (future_global.get()->cost <= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+        if (future_global.get()->cost <= cost_threshold_) {
           valid_goal_poses.push_back(goal);
         }
       } else {
@@ -86,7 +88,7 @@ inline BT::NodeStatus RemoveInCollisionGoals::tick()
       auto future_local = get_local_cost_client_->async_send_request(request);
       auto ret_local = rclcpp::spin_until_future_complete(node_, future_local, server_timeout_);
       if (ret_local == rclcpp::FutureReturnCode::SUCCESS) {
-        if (future_local.get()->cost <= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+        if (future_local.get()->cost <= cost_threshold_) {
           valid_goal_poses.push_back(goal);
         }
       } else {
@@ -103,8 +105,8 @@ inline BT::NodeStatus RemoveInCollisionGoals::tick()
       if (ret_local == rclcpp::FutureReturnCode::SUCCESS &&
         ret_global == rclcpp::FutureReturnCode::SUCCESS)
       {
-        if (future_local.get()->cost <= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE &&
-          future_global.get()->cost <= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE)
+        if (future_local.get()->cost <= cost_threshold_ &&
+          future_global.get()->cost <= cost_threshold_)
         {
           valid_goal_poses.push_back(goal);
         }
