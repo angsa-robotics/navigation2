@@ -44,9 +44,10 @@ void RemoveInCollisionGoals::on_tick()
   if (input_goals_.empty()) {
     setOutput("output_goals", input_goals_);
     should_send_request_ = false;
+    return;
   }
 
-  Goals valid_goal_poses;
+  request_ = std::make_shared<nav2_msgs::srv::GetCosts::Request>();
   request_->use_footprint = use_footprint_;
 
   for (const auto & goal : input_goals) {
