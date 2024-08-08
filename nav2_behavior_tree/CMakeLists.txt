@@ -185,6 +185,9 @@ list(APPEND plugin_libs nav2_navigate_through_poses_action_bt_node)
 add_library(nav2_remove_passed_goals_action_bt_node SHARED plugins/action/remove_passed_goals_action.cpp)
 list(APPEND plugin_libs nav2_remove_passed_goals_action_bt_node)
 
+add_library(nav2_remove_in_collision_goals_action_bt_node SHARED plugins/action/remove_in_collision_goals_action.cpp)
+list(APPEND plugin_libs nav2_remove_in_collision_goals_action_bt_node)
+
 add_library(nav2_pipeline_sequence_bt_node SHARED plugins/control/pipeline_sequence.cpp)
 list(APPEND plugin_libs nav2_pipeline_sequence_bt_node)
 
