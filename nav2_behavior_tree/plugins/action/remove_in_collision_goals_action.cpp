@@ -27,9 +27,8 @@ namespace nav2_behavior_tree
 RemoveInCollisionGoals::RemoveInCollisionGoals(
   const std::string & service_node_name,
   const BT::NodeConfiguration & conf)
-: BtServiceNode<nav2_msgs::srv::GetCosts>(service_node_name, conf),
-  use_footprint_(true),
-  cost_threshold_(253)
+: BtServiceNode<nav2_msgs::srv::GetCosts>(service_node_name, conf,
+    "/global_costmap/get_cost_global_costmap")
 {}
 
 
@@ -44,7 +43,6 @@ void RemoveInCollisionGoals::on_tick()
     should_send_request_ = false;
     return;
   }
-
   request_ = std::make_shared<nav2_msgs::srv::GetCosts::Request>();
   request_->use_footprint = use_footprint_;
 
