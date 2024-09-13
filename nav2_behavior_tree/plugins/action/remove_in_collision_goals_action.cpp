@@ -37,6 +37,7 @@ void RemoveInCollisionGoals::on_tick()
   getInput("use_footprint", use_footprint_);
   getInput("cost_threshold", cost_threshold_);
   getInput("input_goals", input_goals_);
+  getInput("consider_unknown_as_obstacle", consider_unknown_as_obstacle_);
 
   if (input_goals_.empty()) {
     setOutput("output_goals", input_goals_);
@@ -54,16 +55,24 @@ void RemoveInCollisionGoals::on_tick()
 BT::NodeStatus RemoveInCollisionGoals::on_completion(
   std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
+  for (size_t i = 0; i < input_goals_.size(); ++i) {
+    double yaw = tf2::getYaw(input_goals_[i].pose.orientation);
+    RCLCPP_INFO(
+      node_->get_logger(),
+      "Goal %ld: x: %f, y: %f, yaw: %f, costs: %f", i,
+      input_goals_[i].pose.position.x, input_goals_[i].pose.position.y, yaw, response->costs[i]);
+  }
+
   Goals valid_goal_poses;
   for (size_t i = 0; i < response->costs.size(); ++i) {
-    if (response->costs[i] < cost_threshold_) {
+    if ((response->costs[i] == 255 && !consider_unknown_as_obstacle_) || response->costs[i] < cost_threshold_) {
       valid_goal_poses.push_back(input_goals_[i]);
     }
   }
   // Warn if all goals have been removed
   if (valid_goal_poses.empty()) {
     RCLCPP_WARN(
-      rclcpp::get_logger("RemoveInCollisionGoals"),
+      node_->get_logger(),
       "All goals are in collision and have been removed from the list");
   }
   setOutput("output_goals", valid_goal_poses);

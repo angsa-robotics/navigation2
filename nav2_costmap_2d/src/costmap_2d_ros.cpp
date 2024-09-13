@@ -839,7 +839,7 @@ void Costmap2DROS::getCostsCallback(
       pose_transformed.pose.position.y, mx, my);
 
     if (!in_bounds) {
-      response->costs.push_back(-1.0);
+      response->costs.push_back(costmap->getDefaultValue());
       continue;
     }
     double yaw = tf2::getYaw(pose_transformed.pose.orientation);
