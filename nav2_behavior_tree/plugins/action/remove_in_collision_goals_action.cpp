@@ -47,11 +47,7 @@ void RemoveInCollisionGoals::on_tick()
   request_->use_footprint = use_footprint_;
 
   for (const auto & goal : input_goals_) {
-    geometry_msgs::msg::Pose2D pose;
-    pose.x = goal.pose.position.x;
-    pose.y = goal.pose.position.y;
-    pose.theta = tf2::getYaw(goal.pose.orientation);
-    request_->poses.push_back(pose);
+    request_->poses.push_back(goal);
   }
 }
 
@@ -63,6 +59,12 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
     if (response->costs[i] < cost_threshold_) {
       valid_goal_poses.push_back(input_goals_[i]);
     }
+  }
+  // Warn if all goals have been removed
+  if (valid_goal_poses.empty()) {
+    RCLCPP_WARN(
+      rclcpp::get_logger("RemoveInCollisionGoals"),
+      "All goals are in collision and have been removed from the list");
   }
   setOutput("output_goals", valid_goal_poses);
   return BT::NodeStatus::SUCCESS;

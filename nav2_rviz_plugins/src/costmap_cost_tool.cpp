@@ -87,21 +87,23 @@ void CostmapCostTool::callCostService(float x, float y)
 {
   // Create request for local costmap
   auto request = std::make_shared<nav2_msgs::srv::GetCosts::Request>();
-  geometry_msgs::msg::Pose2D pose;
-  pose.x = x;
-  pose.y = y;
+  geometry_msgs::msg::PoseStamped pose;
+  pose.pose.position.x = x;
+  pose.pose.position.y = y;
   request->poses.push_back(pose);
-  request->use_footprint = false;
+  request->use_footprint = true;
 
   // Call local costmap service
   if (local_cost_client_->wait_for_service(std::chrono::seconds(1))) {
-    local_cost_client_->async_send_request(request,
+    local_cost_client_->async_send_request(
+      request,
       std::bind(&CostmapCostTool::handleLocalCostResponse, this, std::placeholders::_1));
   }
 
   // Call global costmap service
   if (global_cost_client_->wait_for_service(std::chrono::seconds(1))) {
-    global_cost_client_->async_send_request(request,
+    global_cost_client_->async_send_request(
+      request,
       std::bind(&CostmapCostTool::handleGlobalCostResponse, this, std::placeholders::_1));
   }
 }
