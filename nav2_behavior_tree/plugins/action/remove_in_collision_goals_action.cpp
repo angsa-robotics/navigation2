@@ -55,23 +55,15 @@ void RemoveInCollisionGoals::on_tick()
 BT::NodeStatus RemoveInCollisionGoals::on_completion(
   std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
-  for (size_t i = 0; i < input_goals_.size(); ++i) {
-    double yaw = tf2::getYaw(input_goals_[i].pose.orientation);
-    RCLCPP_INFO(
-      node_->get_logger(),
-      "Goal %ld: x: %f, y: %f, yaw: %f, costs: %f", i,
-      input_goals_[i].pose.position.x, input_goals_[i].pose.position.y, yaw, response->costs[i]);
-  }
-
   Goals valid_goal_poses;
   for (size_t i = 0; i < response->costs.size(); ++i) {
     if ((response->costs[i] == 255 && !consider_unknown_as_obstacle_) || response->costs[i] < cost_threshold_) {
       valid_goal_poses.push_back(input_goals_[i]);
     }
   }
-  // Warn if all goals have been removed
+  // Inform if all goals have been removed
   if (valid_goal_poses.empty()) {
-    RCLCPP_WARN(
+    RCLCPP_INFO(
       node_->get_logger(),
       "All goals are in collision and have been removed from the list");
   }
