@@ -35,11 +35,13 @@ find_package(yaml_cpp_vendor REQUIRED)
 
 set(nav2_rviz_plugins_headers_to_moc
   include/nav2_rviz_plugins/costmap_cost_tool.hpp
+  include/nav2_rviz_plugins/docking_panel.hpp
   include/nav2_rviz_plugins/goal_pose_updater.hpp
   include/nav2_rviz_plugins/goal_common.hpp
   include/nav2_rviz_plugins/goal_tool.hpp
   include/nav2_rviz_plugins/nav2_panel.hpp
   include/nav2_rviz_plugins/selector.hpp
+  include/nav2_rviz_plugins/utils.hpp
   include/nav2_rviz_plugins/particle_cloud_display/flat_weighted_arrows_array.hpp
   include/nav2_rviz_plugins/particle_cloud_display/particle_cloud_display.hpp
 )
@@ -52,9 +54,11 @@ set(library_name ${PROJECT_NAME})
 
 add_library(${library_name} SHARED
   src/costmap_cost_tool.cpp
+  src/docking_panel.cpp
   src/goal_tool.cpp
   src/nav2_panel.cpp
   src/selector.cpp
+  src/utils.cpp
   src/particle_cloud_display/flat_weighted_arrows_array.cpp
   src/particle_cloud_display/particle_cloud_display.cpp
   ${nav2_rviz_plugins_headers_to_moc}
@@ -111,6 +115,11 @@ install(
 install(
   DIRECTORY include/
   DESTINATION include/
+)
+
+install(
+  DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/icons"
+  DESTINATION "share/${PROJECT_NAME}"
 )
 
 if(BUILD_TESTING)

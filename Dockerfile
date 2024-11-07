@@ -97,7 +97,6 @@ ENV OVERLAY_WS $OVERLAY_WS
 WORKDIR $OVERLAY_WS
 COPY --from=cacher /tmp/$OVERLAY_WS ./
 
-# Remove/Replace turtlebot3_gazebo and gazebo_ros_pkgs from --skip-keys after https://github.com/ros-navigation/navigation2/pull/3634
 RUN . $UNDERLAY_WS/install/setup.sh && \
     apt-get update && rosdep install -q -y \
       --from-paths src \
@@ -171,9 +170,7 @@ RUN mkdir -p $ROOT_SRV
 
 # install demo dependencies
 RUN apt-get update && apt-get install -y \
-      ros-$ROS_DISTRO-aws-robomaker-small-warehouse-world \
-      ros-$ROS_DISTRO-rviz2 \
-      ros-$ROS_DISTRO-turtlebot3-simulations
+      ros-$ROS_DISTRO-rviz2 
 
 # install gzweb dependacies
 RUN apt-get install -y --no-install-recommends \
