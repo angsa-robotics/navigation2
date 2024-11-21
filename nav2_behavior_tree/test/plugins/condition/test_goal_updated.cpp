@@ -28,8 +28,6 @@ class GoalUpdatedConditionTestFixture : public nav2_behavior_tree::BehaviorTreeT
 public:
   void SetUp()
   {
-    config_->input_ports["goals"] = "";
-    config_->input_ports["goal"] = "";
     bt_node_ = std::make_shared<nav2_behavior_tree::GoalUpdatedCondition>(
       "goal_updated", *config_);
   }
@@ -46,7 +44,7 @@ protected:
 std::shared_ptr<nav2_behavior_tree::GoalUpdatedCondition>
 GoalUpdatedConditionTestFixture::bt_node_ = nullptr;
 
-TEST_F(GoalUpdatedConditionTestFixture, test_behavior)
+TEST_F(GoalUpdatedConditionTestFixture, test_behavior_with_goal)
 {
   geometry_msgs::msg::PoseStamped goal;
   config_->blackboard->set("goal", goal);
@@ -56,6 +54,44 @@ TEST_F(GoalUpdatedConditionTestFixture, test_behavior)
 
   goal.pose.position.x = 1.0;
   config_->blackboard->set("goal", goal);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::SUCCESS);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::FAILURE);
+
+  goal.pose.position.x = 1.0;
+  config_->blackboard->set("goal", goal);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::FAILURE);
+
+  goal.pose.position.x = 2.0;
+  config_->blackboard->set("goal", goal);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::SUCCESS);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::FAILURE);
+}
+
+TEST_F(GoalUpdatedConditionTestFixture, test_behavior_with_goals)
+{
+  std::vector<geometry_msgs::msg::PoseStamped> goals;
+  config_->blackboard->set("goals", goals);
+
+  EXPECT_EQ(bt_node_->status(), BT::NodeStatus::IDLE);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::FAILURE);
+
+  geometry_msgs::msg::PoseStamped goal;
+  goal.pose.position.x = 1.0;
+  goals.push_back(goal);
+  config_->blackboard->set("goals", goals);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::SUCCESS);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::FAILURE);
+
+  goals.clear();
+  goal.pose.position.x = 1.0;
+  goals.push_back(goal);
+  config_->blackboard->set("goals", goals);
+  EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::FAILURE);
+
+  goals.clear();
+  goal.pose.position.x = 2.0;
+  goals.push_back(goal);
+  config_->blackboard->set("goals", goals);
   EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::SUCCESS);
   EXPECT_EQ(bt_node_->executeTick(), BT::NodeStatus::FAILURE);
 }
