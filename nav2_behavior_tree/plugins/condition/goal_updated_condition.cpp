@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 #include "nav2_behavior_tree/plugins/condition/goal_updated_condition.hpp"
-#include "nav2_behavior_tree/bt_utils.hpp"
 
 namespace nav2_behavior_tree
 {
@@ -28,11 +27,12 @@ GoalUpdatedCondition::GoalUpdatedCondition(
 
 BT::NodeStatus GoalUpdatedCondition::tick()
 {
-  if (!BT::isStatusActive(status())) {
-    BT::getInputOrBlackboard("goals", goals_);
-    BT::getInputOrBlackboard("goal", goal_);
-    return BT::NodeStatus::FAILURE;
-  }
+  // Since Jazzy, this causes an infinite loop because the status is always IDLE
+  // if (!BT::isStatusActive(status())) {
+  //   BT::getInputOrBlackboard("goals", goals_);
+  //   BT::getInputOrBlackboard("goal", goal_);
+  //   return BT::NodeStatus::FAILURE;
+  // }
 
   std::vector<geometry_msgs::msg::PoseStamped> current_goals;
   geometry_msgs::msg::PoseStamped current_goal;
