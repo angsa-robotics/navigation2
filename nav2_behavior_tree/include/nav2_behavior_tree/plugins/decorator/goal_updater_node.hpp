@@ -58,7 +58,8 @@ public:
       BT::InputPort<nav2_msgs::msg::PoseStampedArray>("input_goals", "Original Goals"),
       BT::OutputPort<geometry_msgs::msg::PoseStamped>("output_goal",
           "Received Goal by subscription"),
-      BT::OutputPort<nav2_msgs::msg::PoseStampedArray>("output_goals", "Received Goals by subscription")
+      BT::OutputPort<nav2_msgs::msg::PoseStampedArray>("output_goals",
+       "Received Goals by subscription")
     };
   }
 
