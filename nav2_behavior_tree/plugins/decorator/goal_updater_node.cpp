@@ -62,7 +62,7 @@ GoalUpdater::GoalUpdater(
 inline BT::NodeStatus GoalUpdater::tick()
 {
   geometry_msgs::msg::PoseStamped goal;
-  Goals goals;
+  nav2_msgs::msg::PoseStampedArray goals;
 
   getInput("input_goal", goal);
   getInput("input_goals", goals);
@@ -83,12 +83,21 @@ inline BT::NodeStatus GoalUpdater::tick()
         last_goal_received_time.seconds(), goal_time.seconds());
     }
   }
+  setOutput("output_goal", goal);
 
-  if (!last_goals_received_.empty()) {
-    goals = last_goals_received_;
+  if (last_goals_received_.header.stamp != rclcpp::Time(0) && !last_goals_received_.poses.empty()) {
+    auto last_goals_received_time = rclcpp::Time(last_goals_received_.header.stamp);
+    auto goals_time = rclcpp::Time(goals.header.stamp);
+    if (last_goals_received_time > goals_time) {
+      goals = last_goals_received_;
+    } else {
+      RCLCPP_WARN(
+        node_->get_logger(), "The timestamp of the received goals (%f) is older than the "
+        "current goals (%f). Ignoring the received goals.",
+        last_goals_received_time.seconds(), goals_time.seconds());
+    }
   }
 
-  setOutput("output_goal", goal);
   setOutput("output_goals", goals);
   return child_node_->executeTick();
 }
@@ -96,15 +105,13 @@ inline BT::NodeStatus GoalUpdater::tick()
 void
 GoalUpdater::callback_updated_goal(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   last_goal_received_ = *msg;
 }
 
 void
 GoalUpdater::callback_updated_goals(const nav2_msgs::msg::PoseStampedArray::SharedPtr msg)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
-  last_goals_received_ = msg->poses;
+  last_goals_received_ = *msg;
 }
 
 }  // namespace nav2_behavior_tree
