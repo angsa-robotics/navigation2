@@ -1,5 +1,6 @@
 // Copyright (c) 2018 Intel Corporation
 // Copyright (c) 2020 Francisco Martin Rico
+// Copyright (c) 2024 Angsa Robotics
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +41,9 @@ GoalUpdater::GoalUpdater(
   callback_group_executor_.add_callback_group(callback_group_, node_->get_node_base_interface());
 
   std::string goal_updater_topic;
+  std::string goals_updater_topic;
   node_->get_parameter_or<std::string>("goal_updater_topic", goal_updater_topic, "goal_update");
+  node_->get_parameter_or<std::string>("goals_updater_topic", goals_updater_topic, "goals_update");
 
   rclcpp::SubscriptionOptions sub_option;
   sub_option.callback_group = callback_group_;
@@ -49,13 +52,20 @@ GoalUpdater::GoalUpdater(
     rclcpp::SystemDefaultsQoS(),
     std::bind(&GoalUpdater::callback_updated_goal, this, _1),
     sub_option);
+  goals_sub_ = node_->create_subscription<nav2_msgs::msg::PoseStampedArray>(
+    goals_updater_topic,
+    rclcpp::SystemDefaultsQoS(),
+    std::bind(&GoalUpdater::callback_updated_goals, this, _1),
+    sub_option);
 }
 
 inline BT::NodeStatus GoalUpdater::tick()
 {
   geometry_msgs::msg::PoseStamped goal;
+  nav2_msgs::msg::PoseStampedArray goals;
 
   getInput("input_goal", goal);
+  getInput("input_goals", goals);
 
   callback_group_executor_.spin_all(std::chrono::milliseconds(50));
 
@@ -71,8 +81,22 @@ inline BT::NodeStatus GoalUpdater::tick()
         last_goal_received_time.seconds(), goal_time.seconds());
     }
   }
-
   setOutput("output_goal", goal);
+
+  if (last_goals_received_.header.stamp != rclcpp::Time(0) && !last_goals_received_.poses.empty()) {
+    auto last_goals_received_time = rclcpp::Time(last_goals_received_.header.stamp);
+    auto goals_time = rclcpp::Time(goals.header.stamp);
+    if (last_goals_received_time > goals_time) {
+      goals = last_goals_received_;
+    } else {
+      RCLCPP_WARN(
+        node_->get_logger(), "The timestamp of the received goals (%f) is older than the "
+        "current goals (%f). Ignoring the received goals.",
+        last_goals_received_time.seconds(), goals_time.seconds());
+    }
+  }
+
+  setOutput("output_goals", goals);
   return child_node_->executeTick();
 }
 
@@ -80,6 +104,12 @@ void
 GoalUpdater::callback_updated_goal(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
   last_goal_received_ = *msg;
+}
+
+void
+GoalUpdater::callback_updated_goals(const nav2_msgs::msg::PoseStampedArray::SharedPtr msg)
+{
+  last_goals_received_ = *msg;
 }
 
 }  // namespace nav2_behavior_tree
