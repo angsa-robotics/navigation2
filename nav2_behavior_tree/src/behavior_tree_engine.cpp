@@ -50,7 +50,7 @@ BehaviorTreeEngine::run(
   std::function<bool()> cancelRequested,
   std::chrono::milliseconds loopTimeout)
 {
-  nav2_behavior_tree::LoopRate loopRate(loopTimeout, tree);
+  rclcpp::WallRate loopRate(loopTimeout);
   BT::NodeStatus result = BT::NodeStatus::RUNNING;
 
   // Loop until something happens with ROS or the node completes
@@ -61,7 +61,7 @@ BehaviorTreeEngine::run(
         return BtStatus::CANCELED;
       }
 
-      result = tree->tickOnce();
+      result = tree->tickExactlyOnce();
 
       onLoop();
       if (!loopRate.sleep()) {
