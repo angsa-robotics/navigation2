@@ -38,6 +38,7 @@ namespace nav2_behavior_tree
 class GoalUpdater : public BT::DecoratorNode
 {
 public:
+  typedef std::vector<geometry_msgs::msg::PoseStamped> Goals;
   /**
    * @brief A constructor for nav2_behavior_tree::GoalUpdater
    * @param xml_tag_name Name for the XML tag for this node
@@ -55,11 +56,10 @@ public:
   {
     return {
       BT::InputPort<geometry_msgs::msg::PoseStamped>("input_goal", "Original Goal"),
-      BT::InputPort<nav2_msgs::msg::PoseStampedArray>("input_goals", "Original Goals"),
+      BT::InputPort<Goals>("input_goals", "Original Goals"),
       BT::OutputPort<geometry_msgs::msg::PoseStamped>("output_goal",
           "Received Goal by subscription"),
-      BT::OutputPort<nav2_msgs::msg::PoseStampedArray>("output_goals",
-       "Received Goals by subscription")
+      BT::OutputPort<Goals>("output_goals", "Received Goals by subscription")
     };
   }
 
