@@ -86,7 +86,9 @@ private:
   rclcpp::Subscription<nav2_msgs::msg::PoseStampedArray>::SharedPtr goals_sub_;
 
   geometry_msgs::msg::PoseStamped last_goal_received_;
+  bool last_goal_received_set_{false};
   nav2_msgs::msg::PoseStampedArray last_goals_received_;
+  bool last_goals_received_set_{false};
 
   rclcpp::Node::SharedPtr node_;
   rclcpp::CallbackGroup::SharedPtr callback_group_;
