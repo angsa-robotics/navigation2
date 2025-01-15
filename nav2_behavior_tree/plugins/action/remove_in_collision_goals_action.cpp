@@ -59,9 +59,12 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
   std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
   Goals valid_goal_poses;
+  Goals skipped_goals;
   for (size_t i = 0; i < response->costs.size(); ++i) {
     if ((response->costs[i] == 255 && !consider_unknown_as_obstacle_) || response->costs[i] < cost_threshold_) {
       valid_goal_poses.push_back(input_goals_[i]);
+    } else {
+      skipped_goals.push_back(input_goals_[i]);
     }
   }
   // Inform if all goals have been removed
@@ -70,6 +73,17 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
       node_->get_logger(),
       "All goals are in collision and have been removed from the list");
   }
+
+  Goals existing_skipped_poses;
+  [[maybe_unused]] auto res = config().blackboard->get("skipped_poses", existing_skipped_poses);
+  // Append the skipped goals to the skipped poses if they are not already there
+  for (const auto & skipped_goal : skipped_goals) {
+    if (std::find(existing_skipped_poses.begin(), existing_skipped_poses.end(), skipped_goal) == existing_skipped_poses.end()) {
+      existing_skipped_poses.push_back(skipped_goal);
+    }
+  }
+  config().blackboard->set("skipped_poses", existing_skipped_poses);
+
   setOutput("output_goals", valid_goal_poses);
   return BT::NodeStatus::SUCCESS;
 }

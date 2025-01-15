@@ -54,6 +54,7 @@ inline BT::NodeStatus RemovePassedGoals::tick()
   }
 
   Goals goal_poses;
+  Goals removed_goals;
   getInput("input_goals", goal_poses);
 
   if (goal_poses.empty()) {
@@ -78,9 +79,14 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     if (dist_to_goal > viapoint_achieved_radius_) {
       break;
     }
-
+    removed_goals.push_back(goal_poses[0]);
     goal_poses.erase(goal_poses.begin());
   }
+
+  Goals completed_poses;
+  [[maybe_unused]] auto res = config().blackboard->get("completed_poses", completed_poses);
+  completed_poses.insert(completed_poses.end(), removed_goals.begin(), removed_goals.end());
+  config().blackboard->set("completed_poses", completed_poses);
 
   setOutput("output_goals", goal_poses);
 
