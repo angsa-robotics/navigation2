@@ -49,9 +49,9 @@ void RemoveInCollisionGoals::on_tick()
 
   for (const auto & goal : input_goals_) {
     // create a copy of the goal and set the timestamp to the current time (Angsa Robotics Hack)
-    geometry_msgs::msg::PoseStamped goal_copy = goal;
-    goal_copy.header.stamp = node_->now(); 
-    request_->poses.push_back(goal_copy);
+    angsa_interfaces::msg::Waypoint goal_copy = goal;
+    goal_copy.pose.header.stamp = node_->now(); 
+    request_->poses.push_back(goal_copy.pose);
   }
 }
 
@@ -59,12 +59,14 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
   std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
   Goals valid_goal_poses;
-  Goals skipped_goals;
+  Goals goals_feedback;
+  [[maybe_unused]] auto res = config().blackboard->get("goals_feedback", goals_feedback);
   for (size_t i = 0; i < response->costs.size(); ++i) {
     if ((response->costs[i] == 255 && !consider_unknown_as_obstacle_) || response->costs[i] < cost_threshold_) {
       valid_goal_poses.push_back(input_goals_[i]);
-    } else {
-      skipped_goals.push_back(input_goals_[i]);
+    }
+    else {
+      goals_feedback[input_goals_[i].index].status = angsa_interfaces::msg::Waypoint::SKIPPED;
     }
   }
   // Inform if all goals have been removed
@@ -73,17 +75,8 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
       node_->get_logger(),
       "All goals are in collision and have been removed from the list");
   }
-
-  Goals existing_skipped_poses;
-  [[maybe_unused]] auto res = config().blackboard->get("skipped_poses", existing_skipped_poses);
-  // Append the skipped goals to the skipped poses if they are not already there
-  for (const auto & skipped_goal : skipped_goals) {
-    if (std::find(existing_skipped_poses.begin(), existing_skipped_poses.end(), skipped_goal) == existing_skipped_poses.end()) {
-      existing_skipped_poses.push_back(skipped_goal);
-    }
-  }
-  config().blackboard->set("skipped_poses", existing_skipped_poses);
-
+  
+  config().blackboard->set("goals_feedback", goals_feedback);
   setOutput("output_goals", valid_goal_poses);
   return BT::NodeStatus::SUCCESS;
 }
