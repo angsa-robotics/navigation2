@@ -20,7 +20,7 @@
 
 #include "behaviortree_cpp/condition_node.h"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "angsa_interfaces/msg/waypoint.hpp"
+#include "nav2_msgs/msg/waypoint.hpp"
 #include "nav2_behavior_tree/bt_utils.hpp"
 
 namespace nav2_behavior_tree
@@ -33,7 +33,7 @@ namespace nav2_behavior_tree
 class GoalUpdatedCondition : public BT::ConditionNode
 {
 public:
-  typedef std::vector<angsa_interfaces::msg::Waypoint> Goals;
+  typedef std::vector<nav2_msgs::msg::Waypoint> Goals;
   /**
    * @brief A constructor for nav2_behavior_tree::GoalUpdatedCondition
    * @param condition_name Name for the XML tag for this node

@@ -80,7 +80,7 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     if (dist_to_goal > viapoint_achieved_radius_) {
       break;
     }
-    goals_feedback[goal_poses[0].index].status = angsa_interfaces::msg::Waypoint::VISITED;
+    goals_feedback[goal_poses[0].index].status = nav2_msgs::msg::Waypoint::VISITED;
     goal_poses.erase(goal_poses.begin());
   }
 

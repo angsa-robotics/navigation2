@@ -49,7 +49,7 @@ void RemoveInCollisionGoals::on_tick()
 
   for (const auto & goal : input_goals_) {
     // create a copy of the goal and set the timestamp to the current time (Angsa Robotics Hack)
-    angsa_interfaces::msg::Waypoint goal_copy = goal;
+    nav2_msgs::msg::Waypoint goal_copy = goal;
     goal_copy.pose.header.stamp = node_->now(); 
     request_->poses.push_back(goal_copy.pose);
   }
@@ -66,7 +66,7 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
       valid_goal_poses.push_back(input_goals_[i]);
     }
     else {
-      goals_feedback[input_goals_[i].index].status = angsa_interfaces::msg::Waypoint::SKIPPED;
+      goals_feedback[input_goals_[i].index].status = nav2_msgs::msg::Waypoint::SKIPPED;
     }
   }
   // Inform if all goals have been removed

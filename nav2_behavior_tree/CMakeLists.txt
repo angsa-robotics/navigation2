@@ -17,7 +17,6 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(nav2_util REQUIRED)
-find_package(angsa_interfaces REQUIRED)
 
 nav2_package()
 
@@ -43,7 +42,6 @@ set(dependencies
   tf2_geometry_msgs
   std_msgs
   std_srvs
-  angsa_interfaces
   nav2_util
 )
 
