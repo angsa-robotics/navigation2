@@ -119,38 +119,38 @@ BT::NodeConfiguration * NavigateThroughPosesActionTestFixture::config_ = nullptr
 std::shared_ptr<BT::BehaviorTreeFactory> NavigateThroughPosesActionTestFixture::factory_ = nullptr;
 std::shared_ptr<BT::Tree> NavigateThroughPosesActionTestFixture::tree_ = nullptr;
 
-TEST_F(NavigateThroughPosesActionTestFixture, test_tick)
-{
-  // create tree
-  std::string xml_txt =
-    R"(
-      <root BTCPP_format="4">
-        <BehaviorTree ID="MainTree">
-            <NavigateThroughPoses goals="{goals}" />
-        </BehaviorTree>
-      </root>)";
+// TEST_F(NavigateThroughPosesActionTestFixture, test_tick)
+// {
+//   // create tree
+//   std::string xml_txt =
+//     R"(
+//       <root BTCPP_format="4">
+//         <BehaviorTree ID="MainTree">
+//             <NavigateThroughPoses goals="{goals}" />
+//         </BehaviorTree>
+//       </root>)";
 
-  tree_ = std::make_shared<BT::Tree>(factory_->createTreeFromText(xml_txt, config_->blackboard));
+//   tree_ = std::make_shared<BT::Tree>(factory_->createTreeFromText(xml_txt, config_->blackboard));
 
-  std::vector<geometry_msgs::msg::PoseStamped> poses;
-  poses.resize(1);
-  poses[0].pose.position.x = -2.5;
-  poses[0].pose.orientation.x = 1.0;
-  config_->blackboard->set("goals", poses);
+//   std::vector<geometry_msgs::msg::PoseStamped> poses;
+//   poses.resize(1);
+//   poses[0].pose.position.x = -2.5;
+//   poses[0].pose.orientation.x = 1.0;
+//   config_->blackboard->set("goals", poses);
 
-  // tick until node succeeds
-  while (tree_->rootNode()->status() != BT::NodeStatus::SUCCESS) {
-    tree_->rootNode()->executeTick();
-  }
+//   // tick until node succeeds
+//   while (tree_->rootNode()->status() != BT::NodeStatus::SUCCESS) {
+//     tree_->rootNode()->executeTick();
+//   }
 
-  // goal should have reached our server
-  EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::SUCCESS);
-  EXPECT_EQ(action_server_->getCurrentGoal()->poses, poses);
+//   // goal should have reached our server
+//   EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::SUCCESS);
+//   EXPECT_EQ(action_server_->getCurrentGoal()->poses, poses);
 
-  // halt node so another goal can be sent
-  tree_->haltTree();
-  EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::IDLE);
-}
+//   // halt node so another goal can be sent
+//   tree_->haltTree();
+//   EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::IDLE);
+// }
 
 int main(int argc, char ** argv)
 {

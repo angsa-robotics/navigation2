@@ -1,6 +1,6 @@
 
 #goal definition
-nav2_msgs/Waypoint[] poses
+Waypoint[] poses
 string behavior_tree
 ---
 #result definition
@@ -24,4 +24,4 @@ int16 number_of_visited_poses
 int16 number_of_skipped_poses
 int16 number_of_failed_poses
 int8 index_of_next_pose
-nav2_msgs/Waypoint[] poses
+Waypoint[] poses
