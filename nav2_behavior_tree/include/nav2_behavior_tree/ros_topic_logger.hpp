@@ -48,6 +48,7 @@ public:
     log_pub_ = node->create_publisher<nav2_msgs::msg::BehaviorTreeLog>(
       "behavior_tree_log",
       rclcpp::QoS(10));
+    enableTransitionToIdle(false);
   }
 
   /**
