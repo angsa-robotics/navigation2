@@ -21,6 +21,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "nav2_msgs/msg/waypoint.hpp"
 #include "nav2_behavior_tree/bt_service_node.hpp"
 #include "nav2_msgs/srv/get_costs.hpp"
 
@@ -30,7 +31,7 @@ namespace nav2_behavior_tree
 class RemoveInCollisionGoals : public BtServiceNode<nav2_msgs::srv::GetCosts>
 {
 public:
-  typedef std::vector<geometry_msgs::msg::PoseStamped> Goals;
+  typedef std::vector<nav2_msgs::msg::Waypoint> Goals;
 
   /**
    * @brief A constructor for nav2_behavior_tree::RemoveInCollisionGoals
