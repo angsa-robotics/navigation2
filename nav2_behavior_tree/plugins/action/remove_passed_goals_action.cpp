@@ -41,7 +41,6 @@ void RemovePassedGoals::initialize()
 
   robot_base_frame_ = BT::deconflictPortAndParamFrame<std::string>(
     node, "robot_base_frame", this);
-  initialized_ = true;
 }
 
 inline BT::NodeStatus RemovePassedGoals::tick()
