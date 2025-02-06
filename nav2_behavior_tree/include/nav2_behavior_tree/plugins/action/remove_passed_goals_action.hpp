@@ -51,6 +51,7 @@ public:
       BT::InputPort<double>("radius", 0.5, "radius to goal for it to be considered for removal"),
       BT::InputPort<std::string>("global_frame", "Global frame"),
       BT::InputPort<std::string>("robot_base_frame", "Robot base frame"),
+      BT::InputPort<int>("nb_goals_to_consider", 10, "Number of waypoints to consider")
     };
   }
 
@@ -62,6 +63,7 @@ private:
   double transform_tolerance_;
   std::shared_ptr<tf2_ros::Buffer> tf_;
   std::string robot_base_frame_;
+  int nb_goals_to_consider_;
 };
 
 }  // namespace nav2_behavior_tree
