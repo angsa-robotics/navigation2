@@ -314,7 +314,6 @@ void VelocitySmoother::smootherTimer()
 
   // Check for velocity timeout. If nothing received, publish zeros to apply deceleration
   if (now() - last_command_time_ > velocity_timeout_) {
-    RCLCPP_WARN(get_logger(), "Velocity command timed out. Stopping the robot.");
     if (last_cmd_ == geometry_msgs::msg::TwistStamped() || stopped_) {
       stopped_ = true;
       return;
