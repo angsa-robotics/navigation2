@@ -62,8 +62,8 @@ public:
 
 private:
   unsigned int current_child_idx_;
-  int number_of_retries_;
-  int retry_count_;
+  unsigned int number_of_retries_;
+  unsigned int retry_count_;
 
   /**
    * @brief The main override required by a BT action

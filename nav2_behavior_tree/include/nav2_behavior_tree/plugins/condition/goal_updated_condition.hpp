@@ -20,7 +20,6 @@
 
 #include "behaviortree_cpp/condition_node.h"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "nav2_msgs/msg/waypoint.hpp"
 #include "nav2_behavior_tree/bt_utils.hpp"
 
 namespace nav2_behavior_tree
@@ -33,7 +32,6 @@ namespace nav2_behavior_tree
 class GoalUpdatedCondition : public BT::ConditionNode
 {
 public:
-  typedef std::vector<nav2_msgs::msg::Waypoint> Goals;
   /**
    * @brief A constructor for nav2_behavior_tree::GoalUpdatedCondition
    * @param condition_name Name for the XML tag for this node
@@ -58,7 +56,7 @@ public:
   static BT::PortsList providedPorts()
   {
     return {
-      BT::InputPort<Goals>(
+      BT::InputPort<std::vector<geometry_msgs::msg::PoseStamped>>(
         "goals", "Vector of navigation goals"),
       BT::InputPort<geometry_msgs::msg::PoseStamped>(
         "goal", "Navigation goal"),
@@ -67,7 +65,7 @@ public:
 
 private:
   geometry_msgs::msg::PoseStamped goal_;
-  Goals goals_;
+  std::vector<geometry_msgs::msg::PoseStamped> goals_;
 };
 
 }  // namespace nav2_behavior_tree

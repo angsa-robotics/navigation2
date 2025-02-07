@@ -31,12 +31,7 @@ ComputePathThroughPosesAction::ComputePathThroughPosesAction(
 
 void ComputePathThroughPosesAction::on_tick()
 {
-  Goals waypoints;
-  getInput("goals", waypoints);
-  goal_.goals.clear();
-  for (auto & waypoint : waypoints) {
-    goal_.goals.push_back(waypoint.pose);
-  }
+  getInput("goals", goal_.goals);
   getInput("planner_id", goal_.planner_id);
   if (getInput("start", goal_.start)) {
     goal_.use_start = true;

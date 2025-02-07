@@ -167,17 +167,13 @@ inline Iter first_after_integrated_distance(Iter begin, Iter end, Getter getComp
  * subset of the path.
  * @return double Path length
  */
-inline double calculate_path_length(const nav_msgs::msg::Path & path, size_t start_index = 0, size_t end_index = 0)
+inline double calculate_path_length(const nav_msgs::msg::Path & path, size_t start_index = 0)
 {
-  if (end_index == 0) {
-    end_index = path.poses.size() - 1;
-  }
   if (start_index + 1 >= path.poses.size()) {
     return 0.0;
   }
-
   double path_length = 0.0;
-  for (size_t idx = start_index; idx < end_index; ++idx) {
+  for (size_t idx = start_index; idx < path.poses.size() - 1; ++idx) {
     path_length += euclidean_distance(path.poses[idx].pose, path.poses[idx + 1].pose);
   }
   return path_length;

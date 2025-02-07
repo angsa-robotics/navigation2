@@ -34,7 +34,7 @@ BT::NodeStatus GoalUpdatedCondition::tick()
   //   return BT::NodeStatus::FAILURE;
   // }
 
-  Goals current_goals;
+  std::vector<geometry_msgs::msg::PoseStamped> current_goals;
   geometry_msgs::msg::PoseStamped current_goal;
   BT::getInputOrBlackboard("goals", current_goals);
   BT::getInputOrBlackboard("goal", current_goal);

@@ -20,7 +20,6 @@
 #include <string>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "nav2_msgs/msg/waypoint.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "nav2_util/robot_utils.hpp"
 #include "behaviortree_cpp/action_node.h"
@@ -32,7 +31,7 @@ namespace nav2_behavior_tree
 class RemovePassedGoals : public BT::ActionNodeBase
 {
 public:
-  typedef std::vector<nav2_msgs::msg::Waypoint> Goals;
+  typedef std::vector<geometry_msgs::msg::PoseStamped> Goals;
 
   RemovePassedGoals(
     const std::string & xml_tag_name,

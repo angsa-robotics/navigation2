@@ -20,7 +20,6 @@
 
 #include "nav2_msgs/action/compute_path_through_poses.hpp"
 #include "nav_msgs/msg/path.h"
-#include "nav2_msgs/msg/waypoint.hpp"
 #include "nav2_behavior_tree/bt_action_node.hpp"
 
 namespace nav2_behavior_tree
@@ -37,7 +36,6 @@ class ComputePathThroughPosesAction
   using ActionResult = Action::Result;
 
 public:
-  typedef std::vector<nav2_msgs::msg::Waypoint> Goals;
   /**
    * @brief A constructor for nav2_behavior_tree::ComputePathThroughPosesAction
    * @param xml_tag_name Name for the XML tag for this node
@@ -77,7 +75,7 @@ public:
   {
     return providedBasicPorts(
       {
-        BT::InputPort<Goals>(
+        BT::InputPort<std::vector<geometry_msgs::msg::PoseStamped>>(
           "goals",
           "Destinations to plan through"),
         BT::InputPort<geometry_msgs::msg::PoseStamped>(

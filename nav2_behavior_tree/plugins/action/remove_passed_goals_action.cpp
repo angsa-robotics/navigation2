@@ -65,25 +65,23 @@ inline BT::NodeStatus RemovePassedGoals::tick()
 
   geometry_msgs::msg::PoseStamped current_pose;
   if (!nav2_util::getCurrentPose(
-      current_pose, *tf_, goal_poses[0].pose.header.frame_id, robot_base_frame_,
+      current_pose, *tf_, goal_poses[0].header.frame_id, robot_base_frame_,
       transform_tolerance_))
   {
     return BT::NodeStatus::FAILURE;
   }
 
   double dist_to_goal;
-  Goals goals_feedback;
-  [[maybe_unused]] auto res = config().blackboard->get("goals_feedback", goals_feedback);
+  while (goal_poses.size() > 1) {
+    dist_to_goal = euclidean_distance(goal_poses[0].pose, current_pose.pose);
 
-  dist_to_goal = euclidean_distance(goal_poses[0].pose.pose, current_pose.pose);
-
-  if (dist_to_goal <= viapoint_achieved_radius_) {
-    goals_feedback[goal_poses[0].index].status = nav2_msgs::msg::Waypoint::VISITED;
-    if (goal_poses.size() > 1) {
-      goal_poses.erase(goal_poses.begin());
+    if (dist_to_goal > viapoint_achieved_radius_) {
+      break;
     }
+
+    goal_poses.erase(goal_poses.begin());
   }
-  config().blackboard->set("goals_feedback", goals_feedback);
+
   setOutput("output_goals", goal_poses);
 
   return BT::NodeStatus::SUCCESS;
