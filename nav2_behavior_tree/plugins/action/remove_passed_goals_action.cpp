@@ -57,9 +57,6 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     return BT::NodeStatus::SUCCESS;
   }
 
-  getInput("nb_goals_to_consider", nb_goals_to_consider_);
-  nb_goals_to_consider_ = std::min(nb_goals_to_consider_, static_cast<int>(goal_poses.size()));
-
   using namespace nav2_util::geometry_utils;  // NOLINT
 
   geometry_msgs::msg::PoseStamped current_pose;
@@ -70,32 +67,16 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     return BT::NodeStatus::FAILURE;
   }
 
+  double dist_to_goal;
   Goals goals_feedback;
   [[maybe_unused]] auto res = config().blackboard->get("goals_feedback", goals_feedback);
 
-  bool goal_reached = false;
-  int reached_goal_index = -1;
+  dist_to_goal = euclidean_distance(goal_poses[0].pose.pose, current_pose.pose);
 
-  // Iterate over the first `nb_goals_to_consider` goals
-  for (int i = 0; i < nb_goals_to_consider_; ++i) {
-    double dist_to_goal = euclidean_distance(goal_poses[i].pose.pose, current_pose.pose);
-    if (dist_to_goal <= viapoint_achieved_radius_) {
-      reached_goal_index = i;
-      goal_reached = true;
-      break;
-    }
-  }
-
-  if (goal_reached) {
-    // Mark reached goal as VISITED and all previous ones as SKIPPED
-    for (int i = 0; i <= reached_goal_index; ++i) {
-      goals_feedback[goal_poses[i].index].status = 
-          (i == reached_goal_index) ? nav2_msgs::msg::Waypoint::VISITED
-                                    : nav2_msgs::msg::Waypoint::SKIPPED;
-    }
-    // If the reached goal is NOT the last one, erase all VISITED and SKIPPED goals
-    if (reached_goal_index < static_cast<int>(goal_poses.size()) - 1) {
-      goal_poses.erase(goal_poses.begin(), goal_poses.begin() + reached_goal_index + 1);
+  if (dist_to_goal <= viapoint_achieved_radius_) {
+    goals_feedback[goal_poses[0].index].status = nav2_msgs::msg::Waypoint::VISITED;
+    if (goal_poses.size() > 1) {
+      goal_poses.erase(goal_poses.begin());
     }
   }
   config().blackboard->set("goals_feedback", goals_feedback);
