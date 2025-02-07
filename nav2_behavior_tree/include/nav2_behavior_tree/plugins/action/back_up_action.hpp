@@ -84,6 +84,9 @@ public:
           "error_code_id", "The back up behavior server error code")
       });
   }
+
+private:
+  bool initialized_;
 };
 
 }  // namespace nav2_behavior_tree

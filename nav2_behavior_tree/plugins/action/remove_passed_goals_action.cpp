@@ -28,7 +28,8 @@ RemovePassedGoals::RemovePassedGoals(
   const std::string & name,
   const BT::NodeConfiguration & conf)
 : BT::ActionNodeBase(name, conf),
-  viapoint_achieved_radius_(0.5)
+  viapoint_achieved_radius_(0.5),
+  initialized_(false)
 {}
 
 void RemovePassedGoals::initialize()
@@ -46,7 +47,9 @@ void RemovePassedGoals::initialize()
 
 inline BT::NodeStatus RemovePassedGoals::tick()
 {
-  if (!BT::isStatusActive(status())) {
+  setStatus(BT::NodeStatus::RUNNING);
+
+  if (!initialized_) {
     initialize();
   }
 

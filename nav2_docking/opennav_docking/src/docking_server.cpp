@@ -86,7 +86,7 @@ DockingServer::on_configure(const rclcpp_lifecycle::State & state)
 
   // Create composed utilities
   mutex_ = std::make_shared<std::mutex>();
-  controller_ = std::make_unique<Controller>(node, tf2_buffer_, fixed_frame_, base_frame_);
+  controller_ = std::make_unique<Controller>(node);
   navigator_ = std::make_unique<Navigator>(node);
   dock_db_ = std::make_unique<DockDatabase>(mutex_);
   if (!dock_db_->initialize(node, tf2_buffer_)) {
@@ -248,7 +248,8 @@ void DockingServer::dockRobot()
     // Send robot to its staging pose
     publishDockingFeedback(DockRobot::Feedback::NAV_TO_STAGING_POSE);
     const auto initial_staging_pose = dock->getStagingPose();
-    const auto robot_pose = getRobotPoseInFrame(initial_staging_pose.header.frame_id);
+    const auto robot_pose = getRobotPoseInFrame(
+      initial_staging_pose.header.frame_id);
     if (!goal->navigate_to_staging_pose ||
       utils::l2Norm(robot_pose.pose, initial_staging_pose.pose) < dock_prestaging_tolerance_)
     {
@@ -449,9 +450,7 @@ bool DockingServer::approachDock(Dock * dock, geometry_msgs::msg::PoseStamped & 
     // Compute and publish controls
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header.stamp = now();
-    if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, true,
-        dock_backwards_))
-    {
+    if (!controller_->computeVelocityCommand(target_pose.pose, command->twist, dock_backwards_)) {
       throw opennav_docking_core::FailedToControl("Failed to get control");
     }
     vel_publisher_->publish(std::move(command));
@@ -517,7 +516,7 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
     auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
     command->header.stamp = now();
     if (getCommandToPose(
-        command->twist, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_, false,
+        command->twist, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_,
         !dock_backwards_))
     {
       return true;
@@ -535,7 +534,7 @@ bool DockingServer::resetApproach(const geometry_msgs::msg::PoseStamped & stagin
 
 bool DockingServer::getCommandToPose(
   geometry_msgs::msg::Twist & cmd, const geometry_msgs::msg::PoseStamped & pose,
-  double linear_tolerance, double angular_tolerance, bool is_docking, bool backward)
+  double linear_tolerance, double angular_tolerance, bool backward)
 {
   // Reset command to zero velocity
   cmd.linear.x = 0;
@@ -558,7 +557,7 @@ bool DockingServer::getCommandToPose(
   tf2_buffer_->transform(target_pose, target_pose, base_frame_);
 
   // Compute velocity command
-  if (!controller_->computeVelocityCommand(target_pose.pose, cmd, is_docking, backward)) {
+  if (!controller_->computeVelocityCommand(target_pose.pose, cmd, backward)) {
     throw opennav_docking_core::FailedToControl("Failed to get control");
   }
 
@@ -645,7 +644,7 @@ void DockingServer::undockRobot()
       auto command = std::make_unique<geometry_msgs::msg::TwistStamped>();
       command->header.stamp = now();
       if (getCommandToPose(
-          command->twist, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_, false,
+          command->twist, staging_pose, undock_linear_tolerance_, undock_angular_tolerance_,
           !dock_backwards_))
       {
         RCLCPP_INFO(get_logger(), "Robot has reached staging pose");

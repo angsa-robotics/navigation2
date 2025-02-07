@@ -23,7 +23,10 @@ SpinAction::SpinAction(
   const std::string & xml_tag_name,
   const std::string & action_name,
   const BT::NodeConfiguration & conf)
-: BtActionNode<nav2_msgs::action::Spin>(xml_tag_name, action_name, conf) {}
+: BtActionNode<nav2_msgs::action::Spin>(xml_tag_name, action_name, conf),
+  initialized_(false)
+{
+}
 
 void SpinAction::initialize()
 {
@@ -34,11 +37,13 @@ void SpinAction::initialize()
   goal_.target_yaw = dist;
   goal_.time_allowance = rclcpp::Duration::from_seconds(time_allowance);
   getInput("is_recovery", is_recovery_);
+
+  initialized_ = true;
 }
 
 void SpinAction::on_tick()
 {
-  if (!BT::isStatusActive(status())) {
+  if (!initialized_) {
     initialize();
   }
 

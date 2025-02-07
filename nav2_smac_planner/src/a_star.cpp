@@ -326,8 +326,7 @@ bool AStarAlgorithm<NodeT>::createPath(
 
     // We allow for nodes to be queued multiple times in case
     // shorter paths result in it, but we can visit only once
-    // Also a chance to perform last-checks necessary.
-    if (onVisitationCheckNode(current_node)) {
+    if (current_node->wasVisited()) {
       continue;
     }
 
@@ -434,12 +433,6 @@ float AStarAlgorithm<NodeT>::getHeuristicCost(const NodePtr & node)
   }
 
   return heuristic;
-}
-
-template<typename NodeT>
-bool AStarAlgorithm<NodeT>::onVisitationCheckNode(const NodePtr & current_node)
-{
-  return current_node->wasVisited();
 }
 
 template<typename NodeT>

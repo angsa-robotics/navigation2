@@ -27,7 +27,8 @@ namespace nav2_behavior_tree
 GoalReachedCondition::GoalReachedCondition(
   const std::string & condition_name,
   const BT::NodeConfiguration & conf)
-: BT::ConditionNode(condition_name, conf)
+: BT::ConditionNode(condition_name, conf),
+  initialized_(false)
 {
   auto node = config().blackboard->get<rclcpp::Node::SharedPtr>("node");
 
@@ -51,11 +52,13 @@ void GoalReachedCondition::initialize()
   tf_ = config().blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
 
   node_->get_parameter("transform_tolerance", transform_tolerance_);
+
+  initialized_ = true;
 }
 
 BT::NodeStatus GoalReachedCondition::tick()
 {
-  if (!BT::isStatusActive(status())) {
+  if (!initialized_) {
     initialize();
   }
 

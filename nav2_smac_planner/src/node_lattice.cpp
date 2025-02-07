@@ -193,8 +193,7 @@ NodeLattice::NodeLattice(const uint64_t index)
   _index(index),
   _was_visited(false),
   _motion_primitive(nullptr),
-  _backwards(false),
-  _is_node_valid(false)
+  _backwards(false)
 {
 }
 
@@ -214,7 +213,6 @@ void NodeLattice::reset()
   pose.theta = 0.0f;
   _motion_primitive = nullptr;
   _backwards = false;
-  _is_node_valid = false;
 }
 
 bool NodeLattice::isNodeValid(
@@ -223,11 +221,6 @@ bool NodeLattice::isNodeValid(
   MotionPrimitive * motion_primitive,
   bool is_backwards)
 {
-  // Already found, we can return the result
-  if (!std::isnan(_cell_cost)) {
-    return _is_node_valid;
-  }
-
   // Check primitive end pose
   // Convert grid quantization of primitives to radians, then collision checker quantization
   static const double bin_size = 2.0 * M_PI / collision_checker->getPrecomputedAngles().size();
@@ -235,8 +228,6 @@ bool NodeLattice::isNodeValid(
   if (collision_checker->inCollision(
       this->pose.x, this->pose.y, angle /*bin in collision checker*/, traverse_unknown))
   {
-    _is_node_valid = false;
-    _cell_cost = collision_checker->getCost();
     return false;
   }
 
@@ -278,8 +269,6 @@ bool NodeLattice::isNodeValid(
             prim_pose._theta / bin_size /*bin in collision checker*/,
             traverse_unknown))
         {
-          _is_node_valid = false;
-          _cell_cost = std::max(max_cell_cost, collision_checker->getCost());
           return false;
         }
         max_cell_cost = std::max(max_cell_cost, collision_checker->getCost());
@@ -288,8 +277,7 @@ bool NodeLattice::isNodeValid(
   }
 
   _cell_cost = max_cell_cost;
-  _is_node_valid = true;
-  return _is_node_valid;
+  return true;
 }
 
 float NodeLattice::getTraversalCost(const NodePtr & child)

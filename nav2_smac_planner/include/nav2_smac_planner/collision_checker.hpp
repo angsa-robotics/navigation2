@@ -113,6 +113,7 @@ public:
    */
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> getCostmapROS() {return costmap_ros_;}
 
+private:
   /**
    * @brief Check if value outside the range
    * @param min Minimum value of the range
@@ -126,8 +127,8 @@ protected:
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
   std::vector<nav2_costmap_2d::Footprint> oriented_footprints_;
   nav2_costmap_2d::Footprint unoriented_footprint_;
-  float center_cost_;
-  bool footprint_is_radius_{false};
+  float footprint_cost_;
+  bool footprint_is_radius_;
   std::vector<float> angles_;
   float possible_collision_cost_{-1};
   rclcpp::Logger logger_{rclcpp::get_logger("SmacPlannerCollisionChecker")};
