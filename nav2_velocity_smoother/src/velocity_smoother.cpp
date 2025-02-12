@@ -318,7 +318,10 @@ void VelocitySmoother::smootherTimer()
       stopped_ = true;
       return;
     }
-    *command_ = geometry_msgs::msg::TwistStamped();
+    // stop immedately
+    last_cmd_ = geometry_msgs::msg::TwistStamped();
+    smoothed_cmd_pub_->publish(std::move(cmd_vel));
+    return;
   }
 
   stopped_ = false;
