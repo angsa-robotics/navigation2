@@ -38,6 +38,7 @@ void RemoveInCollisionGoals::on_tick()
   getInput("cost_threshold", cost_threshold_);
   getInput("input_goals", input_goals_);
   getInput("consider_unknown_as_obstacle", consider_unknown_as_obstacle_);
+  getInput("nb_goals_to_consider", nb_goals_to_consider_);
 
   if (input_goals_.empty()) {
     setOutput("output_goals", input_goals_);
@@ -47,9 +48,9 @@ void RemoveInCollisionGoals::on_tick()
   request_ = std::make_shared<nav2_msgs::srv::GetCosts::Request>();
   request_->use_footprint = use_footprint_;
 
-  for (const auto & goal : input_goals_) {
+  for (size_t i = 0; i < static_cast<size_t>(nb_goals_to_consider_) && i < input_goals_.size(); ++i) {
     // create a copy of the goal and set the timestamp to the current time (Angsa Robotics Hack)
-    nav2_msgs::msg::Waypoint goal_copy = goal;
+    nav2_msgs::msg::Waypoint goal_copy = input_goals_[i];
     goal_copy.pose.header.stamp = node_->now(); 
     request_->poses.push_back(goal_copy.pose);
   }
@@ -58,26 +59,18 @@ void RemoveInCollisionGoals::on_tick()
 BT::NodeStatus RemoveInCollisionGoals::on_completion(
   std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
-  Goals valid_goal_poses;
   Goals goals_feedback;
   [[maybe_unused]] auto res = config().blackboard->get("goals_feedback", goals_feedback);
   for (size_t i = 0; i < response->costs.size(); ++i) {
-    if ((response->costs[i] == 255 && !consider_unknown_as_obstacle_) || response->costs[i] < cost_threshold_) {
-      valid_goal_poses.push_back(input_goals_[i]);
-    }
-    else {
+    if ((response->costs[i] != 255 || consider_unknown_as_obstacle_) && response->costs[i] >= cost_threshold_) {
       goals_feedback[input_goals_[i].index].status = nav2_msgs::msg::Waypoint::SKIPPED;
+      // if it's not valid then we erase it from input_goals_ and set the status to SKIPPED
+      input_goals_.erase(input_goals_.begin() + i);
     }
-  }
-  // Inform if all goals have been removed
-  if (valid_goal_poses.empty()) {
-    RCLCPP_INFO(
-      node_->get_logger(),
-      "All goals are in collision and have been removed from the list");
   }
   
   config().blackboard->set("goals_feedback", goals_feedback);
-  setOutput("output_goals", valid_goal_poses);
+  setOutput("output_goals", input_goals_);
   return BT::NodeStatus::SUCCESS;
 }
 

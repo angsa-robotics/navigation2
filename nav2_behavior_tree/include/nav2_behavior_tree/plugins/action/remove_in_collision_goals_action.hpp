@@ -63,6 +63,9 @@ public:
         BT::InputPort<bool>(
           "consider_unknown_as_obstacle", false,
           "Whether to consider unknown cost as obstacle"),
+        BT::InputPort<int>(
+          "nb_goals_to_consider", 5,
+          "Number of goals to consider for collision checking"),
         BT::OutputPort<Goals>("output_goals", "Goals with in-collision goals removed"),
       });
   }
@@ -72,6 +75,7 @@ private:
   bool consider_unknown_as_obstacle_;
   double cost_threshold_;
   Goals input_goals_;
+  int nb_goals_to_consider_;
 };
 
 }  // namespace nav2_behavior_tree
