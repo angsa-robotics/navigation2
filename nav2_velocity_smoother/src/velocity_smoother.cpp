@@ -312,16 +312,23 @@ void VelocitySmoother::smootherTimer()
   auto cmd_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
   cmd_vel->header = command_->header;
 
+  if (command_->twist.angular.x == -1) { // twist.angular.x = -1 is just a convention we chose to stop immediately 
+    if (last_cmd_ == geometry_msgs::msg::TwistStamped() || stopped_) {
+      stopped_ = true;
+      return;
+    }
+    last_cmd_ = geometry_msgs::msg::TwistStamped();
+    smoothed_cmd_pub_->publish(std::move(cmd_vel));
+    return;
+  }
+
   // Check for velocity timeout. If nothing received, publish zeros to apply deceleration
   if (now() - last_command_time_ > velocity_timeout_) {
     if (last_cmd_ == geometry_msgs::msg::TwistStamped() || stopped_) {
       stopped_ = true;
       return;
     }
-    // stop immedately
-    last_cmd_ = geometry_msgs::msg::TwistStamped();
-    smoothed_cmd_pub_->publish(std::move(cmd_vel));
-    return;
+    *command_ = geometry_msgs::msg::TwistStamped();
   }
 
   stopped_ = false;
