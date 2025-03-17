@@ -175,10 +175,10 @@ VelocitySmoother::on_activate(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "Activating");
   smoothed_cmd_pub_->on_activate();
-  double timer_duration_ms = 1000.0 / smoothing_frequency_;
-  timer_ = this->create_wall_timer(
-    std::chrono::milliseconds(static_cast<int>(timer_duration_ms)),
-    std::bind(&VelocitySmoother::smootherTimer, this));
+  // double timer_duration_ms = 1000.0 / smoothing_frequency_;
+  // timer_ = this->create_wall_timer(
+  //   std::chrono::milliseconds(static_cast<int>(timer_duration_ms)),
+  //   std::bind(&VelocitySmoother::smootherTimer, this));
 
   dyn_params_handler_ = this->add_on_set_parameters_callback(
     std::bind(&VelocitySmoother::dynamicParametersCallback, this, _1));
@@ -238,6 +238,7 @@ void VelocitySmoother::inputCommandStampedCallback(
   } else {
     last_command_time_ = msg->header.stamp;
   }
+  smootherTimer();
 }
 
 void VelocitySmoother::inputCommandCallback(
@@ -313,7 +314,7 @@ void VelocitySmoother::smootherTimer()
   cmd_vel->header = command_->header;
 
   if (command_->twist.angular.x == -1) { // twist.angular.x = -1 is just a convention we chose to stop immediately 
-    if (last_cmd_ == geometry_msgs::msg::TwistStamped() || stopped_) {
+    if (last_cmd_.twist == geometry_msgs::msg::Twist() || stopped_) {
       stopped_ = true;
       return;
     }
@@ -324,11 +325,12 @@ void VelocitySmoother::smootherTimer()
 
   // Check for velocity timeout. If nothing received, publish zeros to apply deceleration
   if (now() - last_command_time_ > velocity_timeout_) {
-    if (last_cmd_ == geometry_msgs::msg::TwistStamped() || stopped_) {
+    if (last_cmd_.twist == geometry_msgs::msg::Twist() || stopped_) {
       stopped_ = true;
       return;
     }
     *command_ = geometry_msgs::msg::TwistStamped();
+    command_->header.stamp = now();
   }
 
   stopped_ = false;
@@ -417,10 +419,10 @@ VelocitySmoother::dynamicParametersCallback(std::vector<rclcpp::Parameter> param
           timer_.reset();
         }
 
-        double timer_duration_ms = 1000.0 / smoothing_frequency_;
-        timer_ = this->create_wall_timer(
-          std::chrono::milliseconds(static_cast<int>(timer_duration_ms)),
-          std::bind(&VelocitySmoother::smootherTimer, this));
+        // double timer_duration_ms = 1000.0 / smoothing_frequency_;
+        // timer_ = this->create_wall_timer(
+        //   std::chrono::milliseconds(static_cast<int>(timer_duration_ms)),
+        //   std::bind(&VelocitySmoother::smootherTimer, this));
       } else if (name == "velocity_timeout") {
         velocity_timeout_ = rclcpp::Duration::from_seconds(parameter.as_double());
       } else if (name == "odom_duration") {
