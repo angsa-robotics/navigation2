@@ -64,13 +64,17 @@ void CostmapLayer::matchSize()
 
 void CostmapLayer::clearArea(int start_x, int start_y, int end_x, int end_y, bool invert)
 {
+  int start_x_bound, start_y_bound, end_x_bound, end_y_bound;
+  worldToMapEnforceBounds(start_x, start_y, start_x_bound, start_y_bound);
+  worldToMapEnforceBounds(end_x, end_y, end_x_bound, end_y_bound);
+
   current_ = false;
   unsigned char * grid = getCharMap();
   for (int x = 0; x < static_cast<int>(getSizeInCellsX()); x++) {
-    bool xrange = x > start_x && x < end_x;
+    bool xrange = x > start_x_bound && x < end_x_bound;
 
     for (int y = 0; y < static_cast<int>(getSizeInCellsY()); y++) {
-      if ((xrange && y > start_y && y < end_y) == invert) {
+      if ((xrange && y > start_y_bound && y < end_y_bound) == invert) {
         continue;
       }
       int index = getIndex(x, y);
