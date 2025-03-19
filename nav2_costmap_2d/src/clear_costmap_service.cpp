@@ -134,7 +134,11 @@ void ClearCostmapService::clearLayerRegion(
   double end_point_x = start_point_x + reset_distance;
   double end_point_y = start_point_y + reset_distance;
 
-  costmap->clearArea(start_point_x, start_point_y, end_point_x, end_point_y, invert);
+  int start_x, start_y, end_x, end_y;
+  costmap->worldToMapNoBounds(start_point_x, start_point_y, start_x, start_y);
+  costmap->worldToMapNoBounds(end_point_x, end_point_y, end_x, end_y);
+
+  costmap->clearArea(start_x, start_y, end_x, end_y, invert);
 
   double ox = costmap->getOriginX(), oy = costmap->getOriginY();
   double width = costmap->getSizeInMetersX(), height = costmap->getSizeInMetersY();
