@@ -233,11 +233,11 @@ void VelocitySmoother::inputCommandStampedCallback(
   }
 
   command_ = msg;
-  if (msg->header.stamp.sec == 0 && msg->header.stamp.nanosec == 0) {
-    last_command_time_ = now();
-  } else {
-    last_command_time_ = msg->header.stamp;
-  }
+  // if (msg->header.stamp.sec == 0 && msg->header.stamp.nanosec == 0) {
+  //   last_command_time_ = now();
+  // } else {
+  //   last_command_time_ = msg->header.stamp;
+  // }
   smootherTimer();
 }
 
@@ -314,24 +314,20 @@ void VelocitySmoother::smootherTimer()
   cmd_vel->header = command_->header;
 
   if (command_->twist.angular.x == -1) { // twist.angular.x = -1 is just a convention we chose to stop immediately 
-    if (last_cmd_.twist == geometry_msgs::msg::Twist() || stopped_) {
-      stopped_ = true;
-      return;
-    }
     last_cmd_ = geometry_msgs::msg::TwistStamped();
     smoothed_cmd_pub_->publish(std::move(cmd_vel));
     return;
   }
 
-  // Check for velocity timeout. If nothing received, publish zeros to apply deceleration
-  if (now() - last_command_time_ > velocity_timeout_) {
-    if (last_cmd_.twist == geometry_msgs::msg::Twist() || stopped_) {
-      stopped_ = true;
-      return;
-    }
-    *command_ = geometry_msgs::msg::TwistStamped();
-    command_->header.stamp = now();
-  }
+  // // Check for velocity timeout. If nothing received, publish zeros to apply deceleration
+  // if (now() - last_command_time_ > velocity_timeout_) {
+  //   if (last_cmd_.twist == geometry_msgs::msg::Twist() || stopped_) {
+  //     stopped_ = true;
+  //     return;
+  //   }
+  //   // *command_ = geometry_msgs::msg::TwistStamped();
+  //   // command_->header.stamp = now();
+  // }
 
   stopped_ = false;
 
@@ -359,7 +355,7 @@ void VelocitySmoother::smootherTimer()
   // proportionally to follow the same direction, within change of velocity bounds.
   // In case eta reduces another axis out of its own limit, apply accel constraint to guarantee
   // output is within limits, even if it deviates from requested command slightly.
-  double dt = (now() - last_odom_time_).seconds();
+  double dt = (now() - last_command_time_).seconds();
   if (dt > 0.1) {
     dt = 0.1;
   }
@@ -392,7 +388,6 @@ void VelocitySmoother::smootherTimer()
     current_.twist.linear.y, command_->twist.linear.y, dt, max_accels_[1], max_decels_[1], eta);
   cmd_vel->twist.angular.z = applyConstraints(
     current_.twist.angular.z, command_->twist.angular.z, dt, max_accels_[2], max_decels_[2], eta);
-  last_cmd_ = *cmd_vel;
 
   // Apply deadband restrictions & publish
   cmd_vel->twist.linear.x =
@@ -402,7 +397,9 @@ void VelocitySmoother::smootherTimer()
   cmd_vel->twist.angular.z =
     fabs(cmd_vel->twist.angular.z) < deadband_velocities_[2] ? 0.0 : cmd_vel->twist.angular.z;
 
+  last_cmd_ = *cmd_vel;
   smoothed_cmd_pub_->publish(std::move(cmd_vel));
+  last_command_time_ = now();
 }
 
 rcl_interfaces::msg::SetParametersResult
