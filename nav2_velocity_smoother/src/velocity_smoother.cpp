@@ -250,7 +250,7 @@ void VelocitySmoother::inputCommandCallback(
 }
 
 double VelocitySmoother::findEtaConstraint(
-  const double v_curr, const double v_cmd, const double accel, const double decel)
+  const double v_curr, const double v_cmd, const double & dt, const double accel, const double decel)
 {
   // Exploiting vector scaling properties
   double dv = v_cmd - v_curr;
@@ -261,12 +261,12 @@ double VelocitySmoother::findEtaConstraint(
   // Accelerating if magnitude of v_cmd is above magnitude of v_curr
   // and if v_cmd and v_curr have the same sign (i.e. speed is NOT passing through 0.0)
   // Decelerating otherwise
-  if (abs(v_cmd) >= abs(v_curr) && v_curr * v_cmd >= 0.0) {
-    v_component_max = accel / smoothing_frequency_;
-    v_component_min = -accel / smoothing_frequency_;
+  if (abs(v_curr) < 0.01 || (abs(v_cmd) >= abs(v_curr) && v_curr * v_cmd >= 0.0)) {
+    v_component_max = accel * dt;
+    v_component_min = -accel * dt;
   } else {
-    v_component_max = -decel / smoothing_frequency_;
-    v_component_min = decel / smoothing_frequency_;
+    v_component_max = -decel * dt;
+    v_component_min = decel * dt;
   }
 
   if (dv > v_component_max) {
@@ -281,7 +281,7 @@ double VelocitySmoother::findEtaConstraint(
 }
 
 double VelocitySmoother::applyConstraints(
-  const double v_curr, const double v_cmd,
+  const double v_curr, const double v_cmd, const double & dt,
   const double accel, const double decel, const double eta)
 {
   double dv = v_cmd - v_curr;
@@ -292,12 +292,12 @@ double VelocitySmoother::applyConstraints(
   // Accelerating if magnitude of v_cmd is above magnitude of v_curr
   // and if v_cmd and v_curr have the same sign (i.e. speed is NOT passing through 0.0)
   // Decelerating otherwise
-  if (abs(v_cmd) >= abs(v_curr) && v_curr * v_cmd >= 0.0) {
-    v_component_max = accel / smoothing_frequency_;
-    v_component_min = -accel / smoothing_frequency_;
+  if (abs(v_curr) < 0.01 || (abs(v_cmd) >= abs(v_curr) && v_curr * v_cmd >= 0.0)) {
+    v_component_max = accel * dt;
+    v_component_min = -accel * dt;
   } else {
-    v_component_max = -decel / smoothing_frequency_;
-    v_component_min = decel / smoothing_frequency_;
+    v_component_max = -decel * dt;
+    v_component_min = decel * dt;
   }
 
   return v_curr + std::clamp(eta * dv, v_component_min, v_component_max);
@@ -359,35 +359,39 @@ void VelocitySmoother::smootherTimer()
   // proportionally to follow the same direction, within change of velocity bounds.
   // In case eta reduces another axis out of its own limit, apply accel constraint to guarantee
   // output is within limits, even if it deviates from requested command slightly.
+  double dt = (now() - last_odom_time_).seconds();
+  if (dt > 0.1) {
+    dt = 0.1;
+  }
   double eta = 1.0;
   if (scale_velocities_) {
     double curr_eta = -1.0;
 
     curr_eta = findEtaConstraint(
-      current_.twist.linear.x, command_->twist.linear.x, max_accels_[0], max_decels_[0]);
+      current_.twist.linear.x, command_->twist.linear.x, dt, max_accels_[0], max_decels_[0]);
     if (curr_eta > 0.0 && std::fabs(1.0 - curr_eta) > std::fabs(1.0 - eta)) {
       eta = curr_eta;
     }
 
     curr_eta = findEtaConstraint(
-      current_.twist.linear.y, command_->twist.linear.y, max_accels_[1], max_decels_[1]);
+      current_.twist.linear.y, command_->twist.linear.y, dt, max_accels_[1], max_decels_[1]);
     if (curr_eta > 0.0 && std::fabs(1.0 - curr_eta) > std::fabs(1.0 - eta)) {
       eta = curr_eta;
     }
 
     curr_eta = findEtaConstraint(
-      current_.twist.angular.z, command_->twist.angular.z, max_accels_[2], max_decels_[2]);
+      current_.twist.angular.z, command_->twist.angular.z, dt, max_accels_[2], max_decels_[2]);
     if (curr_eta > 0.0 && std::fabs(1.0 - curr_eta) > std::fabs(1.0 - eta)) {
       eta = curr_eta;
     }
   }
 
   cmd_vel->twist.linear.x = applyConstraints(
-    current_.twist.linear.x, command_->twist.linear.x, max_accels_[0], max_decels_[0], eta);
+    current_.twist.linear.x, command_->twist.linear.x, dt, max_accels_[0], max_decels_[0], eta);
   cmd_vel->twist.linear.y = applyConstraints(
-    current_.twist.linear.y, command_->twist.linear.y, max_accels_[1], max_decels_[1], eta);
+    current_.twist.linear.y, command_->twist.linear.y, dt, max_accels_[1], max_decels_[1], eta);
   cmd_vel->twist.angular.z = applyConstraints(
-    current_.twist.angular.z, command_->twist.angular.z, max_accels_[2], max_decels_[2], eta);
+    current_.twist.angular.z, command_->twist.angular.z, dt, max_accels_[2], max_decels_[2], eta);
   last_cmd_ = *cmd_vel;
 
   // Apply deadband restrictions & publish
