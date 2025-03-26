@@ -284,7 +284,13 @@ double VelocitySmoother::applyConstraints(
   const double v_curr, const double v_cmd, const double & dt,
   const double accel, const double decel, const double eta)
 {
-  double dv = v_cmd - v_curr;
+
+  auto v_cmd_intermediary = v_cmd;
+  if (v_curr * v_cmd < 0.0) {
+    v_cmd_intermediary = 0.0;
+  }
+
+  double dv = v_cmd_intermediary - v_curr;
 
   double v_component_max;
   double v_component_min;
@@ -292,7 +298,7 @@ double VelocitySmoother::applyConstraints(
   // Accelerating if magnitude of v_cmd is above magnitude of v_curr
   // and if v_cmd and v_curr have the same sign (i.e. speed is NOT passing through 0.0)
   // Decelerating otherwise
-  if (abs(v_curr) < 0.01 || (abs(v_cmd) >= abs(v_curr) && v_curr * v_cmd >= 0.0)) {
+  if (abs(v_curr) < 0.01 || (abs(v_cmd_intermediary) >= abs(v_curr) && v_curr * v_cmd_intermediary >= 0.0)) {
     v_component_max = accel * dt;
     v_component_min = -accel * dt;
   } else {
