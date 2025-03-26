@@ -286,7 +286,7 @@ double VelocitySmoother::applyConstraints(
 {
 
   auto v_cmd_intermediary = v_cmd;
-  if (v_curr * v_cmd < 0.0) {
+  if (abs(v_curr) > 0.0001 && v_curr * v_cmd < 0.0) {
     v_cmd_intermediary = 0.0;
   }
 
@@ -305,7 +305,6 @@ double VelocitySmoother::applyConstraints(
     v_component_max = -decel * dt;
     v_component_min = decel * dt;
   }
-
   return v_curr + std::clamp(eta * dv, v_component_min, v_component_max);
 }
 
