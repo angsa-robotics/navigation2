@@ -24,8 +24,7 @@ DriveOnHeadingAction::DriveOnHeadingAction(
   const std::string & xml_tag_name,
   const std::string & action_name,
   const BT::NodeConfiguration & conf)
-: BtActionNode<nav2_msgs::action::DriveOnHeading>(xml_tag_name, action_name, conf),
-  initalized_(false)
+: BtActionNode<nav2_msgs::action::DriveOnHeading>(xml_tag_name, action_name, conf)
 {
 }
 
@@ -44,12 +43,11 @@ void DriveOnHeadingAction::initialize()
   goal_.target.z = 0.0;
   goal_.speed = speed;
   goal_.time_allowance = rclcpp::Duration::from_seconds(time_allowance);
-  initalized_ = true;
 }
 
 void DriveOnHeadingAction::on_tick()
 {
-  if (!initalized_) {
+  if (!BT::isStatusActive(status())) {
     initialize();
   }
 }
