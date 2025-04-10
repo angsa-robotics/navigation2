@@ -837,6 +837,7 @@ void Costmap2DROS::getCostsCallback(
   const std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
   unsigned int mx, my;
+  std::unique_lock<Costmap2D::mutex_t> lock(*(layered_costmap_->getCostmap()->getMutex()));
 
   Costmap2D * costmap = layered_costmap_->getCostmap();
 
@@ -874,6 +875,7 @@ void Costmap2DROS::getCostsCallback(
       response->costs.push_back(static_cast<float>(costmap->getCost(mx, my)));
     }
   }
+  lock.unlock();
 }
 
 }  // namespace nav2_costmap_2d
