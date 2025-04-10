@@ -61,7 +61,7 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
 {
   Goals goals_feedback;
   [[maybe_unused]] auto res = config().blackboard->get("goals_feedback", goals_feedback);
-  for (size_t i = 0; i < response->costs.size(); ++i) {
+  for (int i = static_cast<int>(response->costs.size()) - 1; i >= 0; --i) {
     if ((response->costs[i] != 255 || consider_unknown_as_obstacle_) && response->costs[i] >= cost_threshold_) {
       goals_feedback[input_goals_[i].index].status = nav2_msgs::msg::Waypoint::SKIPPED;
       // if it's not valid then we erase it from input_goals_ and set the status to SKIPPED
