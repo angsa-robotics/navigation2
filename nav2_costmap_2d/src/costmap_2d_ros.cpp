@@ -837,9 +837,9 @@ void Costmap2DROS::getCostsCallback(
   const std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
   unsigned int mx, my;
-  std::unique_lock<Costmap2D::mutex_t> lock(*(layered_costmap_->getCostmap()->getMutex()));
 
   Costmap2D * costmap = layered_costmap_->getCostmap();
+  std::unique_lock<Costmap2D::mutex_t> lock(*(costmap->getMutex()));
 
   for (const auto & pose : request->poses) {
     geometry_msgs::msg::PoseStamped pose_transformed;
