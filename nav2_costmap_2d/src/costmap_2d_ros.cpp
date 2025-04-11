@@ -875,7 +875,6 @@ void Costmap2DROS::getCostsCallback(
       response->costs.push_back(static_cast<float>(costmap->getCost(mx, my)));
     }
   }
-  lock.unlock();
 }
 
 }  // namespace nav2_costmap_2d
