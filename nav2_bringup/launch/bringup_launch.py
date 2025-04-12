@@ -42,6 +42,7 @@ def generate_launch_description():
     use_namespace = LaunchConfiguration('use_namespace')
     slam = LaunchConfiguration('slam')
     map_yaml_file = LaunchConfiguration('map')
+    graph_filepath = LaunchConfiguration('graph')
     use_sim_time = LaunchConfiguration('use_sim_time')
     params_file = LaunchConfiguration('params_file')
     autostart = LaunchConfiguration('autostart')
@@ -51,11 +52,6 @@ def generate_launch_description():
     use_localization = LaunchConfiguration('use_localization')
 
     # Map fully qualified names to relative ones so the node's namespace can be prepended.
-    # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
-    # https://github.com/ros/geometry2/issues/32
-    # https://github.com/ros/robot_state_publisher/pull/30
-    # TODO(orduno) Substitute with `PushNodeRemapping`
-    #              https://github.com/ros2/launch_ros/issues/56
     remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
 
     # Only it applys when `use_namespace` is True.
@@ -98,6 +94,11 @@ def generate_launch_description():
 
     declare_map_yaml_cmd = DeclareLaunchArgument(
         'map', default_value='', description='Full path to map yaml file to load'
+    )
+
+    declare_graph_file_cmd = DeclareLaunchArgument(
+        'graph',
+        default_value='', description='Path to the graph file to load'
     )
 
     declare_use_localization_cmd = DeclareLaunchArgument(
@@ -190,6 +191,7 @@ def generate_launch_description():
                     'namespace': namespace,
                     'use_sim_time': use_sim_time,
                     'autostart': autostart,
+                    'graph': graph_filepath,
                     'params_file': params_file,
                     'use_composition': use_composition,
                     'use_respawn': use_respawn,
@@ -210,6 +212,7 @@ def generate_launch_description():
     ld.add_action(declare_use_namespace_cmd)
     ld.add_action(declare_slam_cmd)
     ld.add_action(declare_map_yaml_cmd)
+    ld.add_action(declare_graph_file_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_params_file_cmd)
     ld.add_action(declare_autostart_cmd)

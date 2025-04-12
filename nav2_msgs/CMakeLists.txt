@@ -32,6 +32,13 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PoseStampedArray.msg"
   "msg/MissedWaypoint.msg"
   "msg/Waypoint.msg"
+  "msg/WaypointStatus.msg"
+  "msg/Route.msg"
+  "msg/RouteNode.msg"
+  "msg/RouteEdge.msg"
+  "msg/EdgeCost.msg"
+  "msg/Trajectory.msg"
+  "msg/TrajectoryPoint.msg"
   "srv/GetCosts.srv"
   "srv/GetCostmap.srv"
   "srv/IsPathValid.srv"
@@ -43,6 +50,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SaveMap.srv"
   "srv/SetInitialPose.srv"
   "srv/ReloadDockDatabase.srv"
+  "srv/SetRouteGraph.srv"
+  "srv/DynamicEdges.srv"
   "action/AssistedTeleop.action"
   "action/BackUp.action"
   "action/ComputePathToPose.action"
@@ -60,6 +69,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/FollowGPSWaypoints.action"
   "action/DockRobot.action"
   "action/UndockRobot.action"
+  "action/ComputeRoute.action"
+  "action/ComputeAndTrackRoute.action"
   DEPENDENCIES builtin_interfaces geometry_msgs std_msgs action_msgs nav_msgs geographic_msgs
 )
 

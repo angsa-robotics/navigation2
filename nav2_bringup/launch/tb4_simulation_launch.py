@@ -50,6 +50,7 @@ def generate_launch_description():
     namespace = LaunchConfiguration('namespace')
     use_namespace = LaunchConfiguration('use_namespace')
     map_yaml_file = LaunchConfiguration('map')
+    graph_filepath = LaunchConfiguration('graph')
     use_sim_time = LaunchConfiguration('use_sim_time')
     params_file = LaunchConfiguration('params_file')
     autostart = LaunchConfiguration('autostart')
@@ -95,6 +96,11 @@ def generate_launch_description():
         'map',
         default_value=os.path.join(bringup_dir, 'maps', 'depot.yaml'),  # Try warehouse.yaml!
         description='Full path to map file to load',
+    )
+
+    declare_graph_file_cmd = DeclareLaunchArgument(
+        'graph',
+        default_value=os.path.join(bringup_dir, 'graphs', 'turtlebot4_graph.geojson'),
     )
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
@@ -200,6 +206,7 @@ def generate_launch_description():
             'use_namespace': use_namespace,
             'slam': slam,
             'map': map_yaml_file,
+            'graph': graph_filepath,
             'use_sim_time': use_sim_time,
             'params_file': params_file,
             'autostart': autostart,
@@ -264,6 +271,7 @@ def generate_launch_description():
     ld.add_action(declare_use_namespace_cmd)
     ld.add_action(declare_slam_cmd)
     ld.add_action(declare_map_yaml_cmd)
+    ld.add_action(declare_graph_file_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_params_file_cmd)
     ld.add_action(declare_autostart_cmd)
