@@ -23,6 +23,7 @@ __all__ = [
     'CostmapMetaData',
     'CostmapUpdate',
     'MissedWaypoint',
+    'Waypoint',
     'Particle',
     'ParticleCloud',
     'Route',
