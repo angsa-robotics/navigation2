@@ -57,46 +57,48 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     return BT::NodeStatus::SUCCESS;
   }
 
+  getInput("nb_goals_to_consider", nb_goals_to_consider_);
+  nb_goals_to_consider_ = std::min(nb_goals_to_consider_, static_cast<int>(goal_poses.size()));
+
   using namespace nav2_util::geometry_utils;  // NOLINT
 
   geometry_msgs::msg::PoseStamped current_pose;
   if (!nav2_util::getCurrentPose(
-      current_pose, *tf_, goal_poses.goals[0].header.frame_id, robot_base_frame_,
+      current_pose, *tf_, goal_poses[0].pose.header.frame_id, robot_base_frame_,
       transform_tolerance_))
   {
     return BT::NodeStatus::FAILURE;
   }
 
-  // get the `waypoint_statuses` vector
-  std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses;
-  auto waypoint_statuses_get_res = getInput("input_waypoint_statuses", waypoint_statuses);
-  if (!waypoint_statuses_get_res) {
-    RCLCPP_ERROR_ONCE(node_->get_logger(), "Missing [input_waypoint_statuses] port input!");
-  }
+  Goals goals_feedback;
+  [[maybe_unused]] auto res = config().blackboard->get("goals_feedback", goals_feedback);
 
-  double dist_to_goal;
-  while (goal_poses.goals.size() > 1) {
-    dist_to_goal = euclidean_distance(goal_poses.goals[0].pose, current_pose.pose);
+  bool goal_reached = false;
+  int reached_goal_index = -1;
 
-    if (dist_to_goal > viapoint_achieved_radius_) {
+  // Iterate over the first `nb_goals_to_consider` goals
+  for (int i = 0; i < nb_goals_to_consider_; ++i) {
+    double dist_to_goal = euclidean_distance(goal_poses[i].pose.pose, current_pose.pose);
+    if (dist_to_goal <= viapoint_achieved_radius_) {
+      reached_goal_index = i;
+      goal_reached = true;
       break;
     }
-
-    // mark waypoint statuses before the goal is erased from goals
-    if (waypoint_statuses_get_res) {
-      auto cur_waypoint_index =
-        find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, goal_poses.goals[0]);
-      if (cur_waypoint_index == -1) {
-        RCLCPP_ERROR_ONCE(node_->get_logger(), "Failed to find matching goal in waypoint_statuses");
-        return BT::NodeStatus::FAILURE;
-      }
-      waypoint_statuses[cur_waypoint_index].waypoint_status =
-        nav2_msgs::msg::WaypointStatus::COMPLETED;
-    }
-
-    goal_poses.goals.erase(goal_poses.goals.begin());
   }
 
+  if (goal_reached) {
+    // Mark reached goal as VISITED and all previous ones as SKIPPED
+    for (int i = 0; i <= reached_goal_index; ++i) {
+      goals_feedback[goal_poses[i].index].status = 
+          (i == reached_goal_index) ? nav2_msgs::msg::Waypoint::VISITED
+                                    : nav2_msgs::msg::Waypoint::SKIPPED;
+    }
+    // If the reached goal is NOT the last one, erase all VISITED and SKIPPED goals
+    if (reached_goal_index < static_cast<int>(goal_poses.size()) - 1) {
+      goal_poses.erase(goal_poses.begin(), goal_poses.begin() + reached_goal_index + 1);
+    }
+  }
+  config().blackboard->set("goals_feedback", goals_feedback);
   setOutput("output_goals", goal_poses);
   // set `waypoint_statuses` output
   setOutput("output_waypoint_statuses", waypoint_statuses);

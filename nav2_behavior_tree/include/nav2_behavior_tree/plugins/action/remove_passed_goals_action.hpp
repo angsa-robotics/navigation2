@@ -25,6 +25,8 @@
 #include "nav2_behavior_tree/bt_utils.hpp"
 #include "nav2_behavior_tree/json_utils.hpp"
 #include "nav2_msgs/msg/waypoint_status.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "nav2_msgs/msg/waypoint.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "nav2_util/robot_utils.hpp"
 
@@ -39,6 +41,8 @@ namespace nav2_behavior_tree
 class RemovePassedGoals : public BT::ActionNodeBase
 {
 public:
+  typedef std::vector<nav2_msgs::msg::Waypoint> Goals;
+
   RemovePassedGoals(
     const std::string & xml_tag_name,
     const BT::NodeConfiguration & conf);
@@ -62,10 +66,7 @@ public:
           "Goals with passed viapoints removed"),
       BT::InputPort<double>("radius", 0.5, "radius to goal for it to be considered for removal"),
       BT::InputPort<std::string>("robot_base_frame", "Robot base frame"),
-      BT::InputPort<std::vector<nav2_msgs::msg::WaypointStatus>>("input_waypoint_statuses",
-          "Original waypoint_statuses to mark waypoint status from"),
-      BT::OutputPort<std::vector<nav2_msgs::msg::WaypointStatus>>("output_waypoint_statuses",
-          "Waypoint_statuses with passed waypoints marked")
+      BT::InputPort<int>("nb_goals_to_consider", 10, "Number of waypoints to consider")
     };
   }
 
@@ -78,6 +79,7 @@ private:
   rclcpp::Node::SharedPtr node_;
   std::shared_ptr<tf2_ros::Buffer> tf_;
   std::string robot_base_frame_;
+  int nb_goals_to_consider_;
 };
 
 }  // namespace nav2_behavior_tree

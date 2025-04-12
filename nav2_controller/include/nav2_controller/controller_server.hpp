@@ -181,6 +181,10 @@ protected:
    */
   void onGoalExit();
   /**
+   * @brief Publishes hard stop velocity
+   */
+  void publishHardStopVelocity();
+  /**
    * @brief Checks if goal is reached
    * @return true or false
    */
