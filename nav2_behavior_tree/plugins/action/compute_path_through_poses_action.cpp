@@ -33,9 +33,9 @@ void ComputePathThroughPosesAction::on_tick()
 {
   Goals waypoints;
   getInput("goals", waypoints);
-  goal_.goals.clear();
+  goal_.goals.goals.clear();
   for (auto & waypoint : waypoints) {
-    goal_.goals.push_back(waypoint.pose);
+    goal_.goals.goals.push_back(waypoint.pose);
   }
   getInput("planner_id", goal_.planner_id);
   if (getInput("start", goal_.start)) {
