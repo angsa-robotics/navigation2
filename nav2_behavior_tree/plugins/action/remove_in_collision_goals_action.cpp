@@ -18,9 +18,8 @@
 
 #include "nav2_behavior_tree/plugins/action/remove_in_collision_goals_action.hpp"
 #include "nav2_behavior_tree/bt_utils.hpp"
-#include "tf2/utils.hpp"
+#include "tf2/utils.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
-#include "nav2_util/geometry_utils.hpp"
 
 namespace nav2_behavior_tree
 {
@@ -39,8 +38,9 @@ void RemoveInCollisionGoals::on_tick()
   getInput("cost_threshold", cost_threshold_);
   getInput("input_goals", input_goals_);
   getInput("consider_unknown_as_obstacle", consider_unknown_as_obstacle_);
+  getInput("nb_goals_to_consider", nb_goals_to_consider_);
 
-  if (input_goals_.goals.empty()) {
+  if (input_goals_.empty()) {
     setOutput("output_goals", input_goals_);
     should_send_request_ = false;
     return;
@@ -48,57 +48,29 @@ void RemoveInCollisionGoals::on_tick()
   request_ = std::make_shared<nav2_msgs::srv::GetCosts::Request>();
   request_->use_footprint = use_footprint_;
 
-  for (const auto & goal : input_goals_.goals) {
-    request_->poses.push_back(goal);
+  for (size_t i = 0; i < static_cast<size_t>(nb_goals_to_consider_) && i < input_goals_.size(); ++i) {
+    // create a copy of the goal and set the timestamp to the current time (Angsa Robotics Hack)
+    nav2_msgs::msg::Waypoint goal_copy = input_goals_[i];
+    goal_copy.pose.header.stamp = node_->now(); 
+    request_->poses.push_back(goal_copy.pose);
   }
 }
 
 BT::NodeStatus RemoveInCollisionGoals::on_completion(
   std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
-  if (!response->success) {
-    RCLCPP_ERROR(
-      node_->get_logger(),
-      "GetCosts service call failed");
-    setOutput("output_goals", input_goals_);
-    return BT::NodeStatus::FAILURE;
-  }
-
-  // get the `waypoint_statuses` vector
-  std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses;
-  auto waypoint_statuses_get_res = getInput("input_waypoint_statuses", waypoint_statuses);
-  if (!waypoint_statuses_get_res) {
-    RCLCPP_ERROR(node_->get_logger(), "Missing [input_waypoint_statuses] port input!");
-  }
-
-  nav_msgs::msg::Goals valid_goal_poses;
-  for (size_t i = 0; i < response->costs.size(); ++i) {
-    if ((response->costs[i] == 255 && !consider_unknown_as_obstacle_) ||
-      response->costs[i] < cost_threshold_)
-    {
-      valid_goal_poses.goals.push_back(input_goals_.goals[i]);
-    } else if (waypoint_statuses_get_res) {
-      using namespace nav2_util::geometry_utils;  // NOLINT
-      auto cur_waypoint_index =
-        find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, input_goals_.goals[i]);
-      if (cur_waypoint_index == -1) {
-        RCLCPP_ERROR(node_->get_logger(), "Failed to find matching goal in waypoint_statuses");
-        return BT::NodeStatus::FAILURE;
-      }
-      waypoint_statuses[cur_waypoint_index].waypoint_status =
-        nav2_msgs::msg::WaypointStatus::SKIPPED;
+  Goals goals_feedback;
+  [[maybe_unused]] auto res = config().blackboard->get("goals_feedback", goals_feedback);
+  for (int i = static_cast<int>(response->costs.size()) - 1; i >= 0; --i) {
+    if ((response->costs[i] != 255 || consider_unknown_as_obstacle_) && response->costs[i] >= cost_threshold_) {
+      goals_feedback[input_goals_[i].index].status = nav2_msgs::msg::Waypoint::SKIPPED;
+      // if it's not valid then we erase it from input_goals_ and set the status to SKIPPED
+      input_goals_.erase(input_goals_.begin() + i);
     }
   }
-  // Inform if all goals have been removed
-  if (valid_goal_poses.goals.empty()) {
-    RCLCPP_INFO(
-      node_->get_logger(),
-      "All goals are in collision and have been removed from the list");
-  }
-  setOutput("output_goals", valid_goal_poses);
-  // set `waypoint_statuses` output
-  setOutput("output_waypoint_statuses", waypoint_statuses);
-
+  
+  config().blackboard->set("goals_feedback", goals_feedback);
+  setOutput("output_goals", input_goals_);
   return BT::NodeStatus::SUCCESS;
 }
 
