@@ -64,10 +64,11 @@ public:
 
     return {
       BT::InputPort<geometry_msgs::msg::PoseStamped>("input_goal", "Original Goal"),
-      BT::InputPort<Goals>("input_goals", "Original Goals"),
+      BT::InputPort<nav_msgs::msg::Goals>("input_goals", "Original Goals"),
       BT::OutputPort<geometry_msgs::msg::PoseStamped>("output_goal",
           "Received Goal by subscription"),
-      BT::OutputPort<Goals>("output_goals", "Received Goals by subscription")
+      BT::OutputPort<nav_msgs::msg::Goals>("output_goals",
+          "Received Goals by subscription")
     };
   }
 
@@ -94,16 +95,16 @@ private:
 
   /**
    * @brief Callback function for goals update topic
-   * @param msg Shared pointer to vector of geometry_msgs::msg::PoseStamped message
+   * @param msg Shared pointer to nav_msgs::msg::Goals message
    */
-  void callback_updated_goals(const nav2_msgs::msg::PoseStampedArray::SharedPtr msg);
+  void callback_updated_goals(const nav_msgs::msg::Goals::SharedPtr msg);
 
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
-  rclcpp::Subscription<nav2_msgs::msg::PoseStampedArray>::SharedPtr goals_sub_;
+  rclcpp::Subscription<nav_msgs::msg::Goals>::SharedPtr goals_sub_;
 
   geometry_msgs::msg::PoseStamped last_goal_received_;
   bool last_goal_received_set_{false};
-  nav2_msgs::msg::PoseStampedArray last_goals_received_;
+  nav_msgs::msg::Goals last_goals_received_;
   bool last_goals_received_set_{false};
 
   rclcpp::Node::SharedPtr node_;

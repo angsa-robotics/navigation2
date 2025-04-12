@@ -66,7 +66,7 @@ void GoalUpdater::createROSInterfaces()
     rclcpp::SystemDefaultsQoS(),
     std::bind(&GoalUpdater::callback_updated_goal, this, _1),
     sub_option);
-  goals_sub_ = node_->create_subscription<nav2_msgs::msg::PoseStampedArray>(
+  goals_sub_ = node_->create_subscription<nav_msgs::msg::Goals>(
     goals_updater_topic,
     rclcpp::SystemDefaultsQoS(),
     std::bind(&GoalUpdater::callback_updated_goals, this, _1),
@@ -83,7 +83,7 @@ inline BT::NodeStatus GoalUpdater::tick()
   }
 
   geometry_msgs::msg::PoseStamped goal;
-  Goals goals;
+  nav_msgs::msg::Goals goals;
 
   getInput("input_goal", goal);
   getInput("input_goals", goals);
@@ -117,7 +117,7 @@ inline BT::NodeStatus GoalUpdater::tick()
   }
 
   if (last_goals_received_set_) {
-    if (last_goals_received_.poses.empty()) {
+    if (last_goals_received_.goals.empty()) {
         setOutput("output_goals", goals);
       } else if (last_goals_received_.header.stamp == rclcpp::Time(0)) {
         RCLCPP_WARN(
@@ -126,13 +126,13 @@ inline BT::NodeStatus GoalUpdater::tick()
       } else {
         auto last_goals_received_time = rclcpp::Time(last_goals_received_.header.stamp);
         rclcpp::Time most_recent_goal_time =  rclcpp::Time(0, 0, node_->get_clock()->get_clock_type());
-        for (const auto & g : goals) {
+        for (const auto & g : goals.goals) {
           if (rclcpp::Time(g.header.stamp) > most_recent_goal_time) {
             most_recent_goal_time = rclcpp::Time(g.header.stamp);
           }
         }
         if (last_goals_received_time >= most_recent_goal_time) {
-          setOutput("output_goals", last_goals_received_.poses);
+          setOutput("output_goals", last_goals_received_.goals);
         } else {
           RCLCPP_WARN(
             node_->get_logger(), "The timestamp of the received goals (%f) is older than the "
@@ -158,7 +158,7 @@ GoalUpdater::callback_updated_goal(const geometry_msgs::msg::PoseStamped::Shared
 }
 
 void
-GoalUpdater::callback_updated_goals(const nav2_msgs::msg::PoseStampedArray::SharedPtr msg)
+GoalUpdater::callback_updated_goals(const nav_msgs::msg::Goals::SharedPtr msg)
 {
   last_goals_received_ = *msg;
   last_goals_received_set_ = true;

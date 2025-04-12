@@ -36,11 +36,11 @@ void RemovePassedGoals::initialize()
   getInput("radius", viapoint_achieved_radius_);
 
   tf_ = config().blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
-  node_ = config().blackboard->get<rclcpp::Node::SharedPtr>("node");
-  node_->get_parameter("transform_tolerance", transform_tolerance_);
+  auto node = config().blackboard->get<rclcpp::Node::SharedPtr>("node");
+  node->get_parameter("transform_tolerance", transform_tolerance_);
 
   robot_base_frame_ = BT::deconflictPortAndParamFrame<std::string>(
-    node_, "robot_base_frame", this);
+    node, "robot_base_frame", this);
 }
 
 inline BT::NodeStatus RemovePassedGoals::tick()
@@ -49,10 +49,10 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     initialize();
   }
 
-  nav_msgs::msg::Goals goal_poses;
+  Goals goal_poses;
   getInput("input_goals", goal_poses);
 
-  if (goal_poses.goals.empty()) {
+  if (goal_poses.empty()) {
     setOutput("output_goals", goal_poses);
     return BT::NodeStatus::SUCCESS;
   }
@@ -100,8 +100,6 @@ inline BT::NodeStatus RemovePassedGoals::tick()
   }
   config().blackboard->set("goals_feedback", goals_feedback);
   setOutput("output_goals", goal_poses);
-  // set `waypoint_statuses` output
-  setOutput("output_waypoint_statuses", waypoint_statuses);
 
   return BT::NodeStatus::SUCCESS;
 }

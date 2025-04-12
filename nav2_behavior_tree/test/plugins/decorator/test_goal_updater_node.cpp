@@ -131,7 +131,7 @@ TEST_F(GoalUpdaterTestFixture, test_older_goal_update)
   auto goal_updater_pub =
     node_->create_publisher<geometry_msgs::msg::PoseStamped>("goal_update", 10);
   auto goals_updater_pub =
-    node_->create_publisher<nav2_msgs::msg::PoseStampedArray>("goals_update", 10);
+    node_->create_publisher<nav_msgs::msg::Goals>("goals_update", 10);
 
   // create new goal and set it on blackboard
   geometry_msgs::msg::PoseStamped goal;
@@ -144,11 +144,11 @@ TEST_F(GoalUpdaterTestFixture, test_older_goal_update)
 
   // publish updated_goal older than goal
   geometry_msgs::msg::PoseStamped goal_to_update;
-  nav2_msgs::msg::PoseStampedArray goals_to_update;
+  nav_msgs::msg::Goals goals_to_update;
   goal_to_update.header.stamp = rclcpp::Time(goal.header.stamp) - rclcpp::Duration(1, 0);
   goal_to_update.pose.position.x = 2.0;
   goals_to_update.header.stamp = goal_to_update.header.stamp;
-  goals_to_update.poses.push_back(goal_to_update);
+  goals_to_update.goals.push_back(goal_to_update);
 
   goal_updater_pub->publish(goal_to_update);
   goals_updater_pub->publish(goals_to_update);
@@ -181,7 +181,7 @@ TEST_F(GoalUpdaterTestFixture, test_get_latest_goal_update)
   auto goal_updater_pub =
     node_->create_publisher<geometry_msgs::msg::PoseStamped>("goal_update", 10);
   auto goals_updater_pub =
-    node_->create_publisher<nav2_msgs::msg::PoseStampedArray>("goals_update", 10);
+    node_->create_publisher<nav_msgs::msg::Goals>("goals_update", 10);
 
   // create new goal and set it on blackboard
   geometry_msgs::msg::PoseStamped goal;
@@ -194,18 +194,18 @@ TEST_F(GoalUpdaterTestFixture, test_get_latest_goal_update)
 
   // publish updated_goal older than goal
   geometry_msgs::msg::PoseStamped goal_to_update_1;
-  nav2_msgs::msg::PoseStampedArray goals_to_update_1;
+  nav_msgs::msg::Goals goals_to_update_1;
   goal_to_update_1.header.stamp = node_->now();
   goal_to_update_1.pose.position.x = 2.0;
   goals_to_update_1.header.stamp = goal_to_update_1.header.stamp;
-  goals_to_update_1.poses.push_back(goal_to_update_1);
+  goals_to_update_1.goals.push_back(goal_to_update_1);
 
   geometry_msgs::msg::PoseStamped goal_to_update_2;
-  nav2_msgs::msg::PoseStampedArray goals_to_update_2;
+  nav_msgs::msg::Goals goals_to_update_2;
   goal_to_update_2.header.stamp = node_->now();
   goal_to_update_2.pose.position.x = 3.0;
   goals_to_update_2.header.stamp = goal_to_update_2.header.stamp;
-  goals_to_update_2.poses.push_back(goal_to_update_2);
+  goals_to_update_2.goals.push_back(goal_to_update_2);
 
   goal_updater_pub->publish(goal_to_update_1);
   goals_updater_pub->publish(goals_to_update_1);
@@ -221,7 +221,7 @@ TEST_F(GoalUpdaterTestFixture, test_get_latest_goal_update)
   EXPECT_EQ(tree_->rootNode()->status(), BT::NodeStatus::SUCCESS);
   // expect to update goal with latest goal update
   EXPECT_EQ(updated_goal, goal_to_update_2);
-  EXPECT_EQ(updated_goals, goals_to_update_2.poses);
+  EXPECT_EQ(updated_goals, goals_to_update_2.goals);
 }
 
 int main(int argc, char ** argv)
