@@ -437,6 +437,10 @@ void PlannerServer::computePlanThroughPoses()
           get_logger(), "Goal %d coordinates of (%.2f, %.2f) was outside bounds",
           i, curr_goal.pose.position.x, curr_goal.pose.position.y);
         continue;
+      } catch (nav2_core::StartOccupied & ex) {
+        RCLCPP_WARN(
+          get_logger(), "Error START_OCCUPIED but probably 2 goals are just too close to each other.");
+        continue;
       }
 
       if (!validatePath<ActionThroughPoses>(curr_goal, curr_path, goal->planner_id)) {
