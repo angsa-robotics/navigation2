@@ -426,11 +426,18 @@ void PlannerServer::computePlanThroughPoses()
       if (!transformPosesToGlobalFrame(curr_start, curr_goal)) {
         throw nav2_core::PlannerTFError("Unable to transform poses to global frame");
       }
-
+      nav_msgs::msg::Path curr_path;
       // Get plan from start -> goal
-      nav_msgs::msg::Path curr_path = getPlan(
-        curr_start, curr_goal, goal->planner_id,
-        cancel_checker);
+      try {
+        curr_path = getPlan(
+          curr_start, curr_goal, goal->planner_id,
+          cancel_checker);
+      } catch (nav2_core::GoalOutsideMapBounds & ex) {
+        RCLCPP_WARN(
+          get_logger(), "Goal %d coordinates of (%.2f, %.2f) was outside bounds",
+          i, curr_goal.pose.position.x, curr_goal.pose.position.y);
+        continue;
+      }
 
       if (!validatePath<ActionThroughPoses>(curr_goal, curr_path, goal->planner_id)) {
         throw nav2_core::NoValidPathCouldBeFound(goal->planner_id + " generated a empty path");
