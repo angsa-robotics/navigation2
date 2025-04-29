@@ -83,6 +83,18 @@ inline double findCircumscribedCost(std::shared_ptr<nav2_costmap_2d::Costmap2DRO
   if (inflation_layer != nullptr) {
     double circum_radius = costmap->getLayeredCostmap()->getCircumscribedRadius();
     double resolution = costmap->getCostmap()->getResolution();
+    double inflation_radius = inflation_layer->getInflationRadius();
+    if (inflation_radius < circum_radius) {
+        RCLCPP_WARN(
+          rclcpp::get_logger("computeCircumscribedCost"),
+          "The inflation radius (%f) is smaller than the circumscribed radius (%f) "
+          "If this is an SE2-collision checking plugin, it cannot use costmap potential "
+          "field to speed up collision checking by only checking the full footprint "
+          "when robot is within possibly-inscribed radius of an obstacle. This may "
+          "significantly slow down planning times!", 
+          inflation_radius, circum_radius);
+      return result;
+    }
     result = static_cast<double>(inflation_layer->computeCost(circum_radius / resolution));
   } else {
     RCLCPP_WARN(
@@ -207,9 +219,9 @@ inline visualization_msgs::msg::Marker createMarker(
   marker.pose.orientation.y = 0.0;
   marker.pose.orientation.z = 0.0;
   marker.pose.orientation.w = 1.0;
-  marker.scale.x = 0.05;
-  marker.scale.y = 0.05;
-  marker.scale.z = 0.05;
+  marker.scale.x = 0.01;
+  marker.scale.y = 0.01;
+  marker.scale.z = 0.01;
   marker.color.r = 0.0f;
   marker.color.g = 0.0f;
   marker.color.b = 1.0f;
