@@ -412,7 +412,7 @@ void PlannerServer::computePlanThroughPoses()
     // Get consecutive paths through these points
     for (unsigned int i = 0; i != goal->goals.size(); i++) {
       // Get starting point
-      if (i == 0) {
+      if (i == 0 || concat_path.poses.empty()) {
         curr_start = start;
       } else {
         // pick the end of the last planning task as the start for the next one
