@@ -53,10 +53,12 @@ BT::NodeStatus RecoveryNode::tick()
         halt();
         return BT::NodeStatus::SKIPPED;
 
-      case BT::NodeStatus::SUCCESS:
-        // reset node and return success when first child returns success
-        halt();
-        return BT::NodeStatus::SUCCESS;
+        case BT::NodeStatus::SUCCESS:
+          // reset node and return success when first child returns success
+          // also halt the recovery action as the main action is successful, reset its state
+          ControlNode::haltChild(1);
+          halt();
+          return BT::NodeStatus::SUCCESS;
 
       case BT::NodeStatus::RUNNING:
         return BT::NodeStatus::RUNNING;
