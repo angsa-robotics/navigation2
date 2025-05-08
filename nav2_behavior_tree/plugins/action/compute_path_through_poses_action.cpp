@@ -38,14 +38,33 @@ void ComputePathThroughPosesAction::on_tick()
     goal_.goals.push_back(waypoint.pose);
   }
   getInput("planner_id", goal_.planner_id);
-  if (getInput("start", goal_.start)) {
+  nav2_msgs::msg::Waypoint start;
+  if (getInput("start", start)) {
+    goal_.start = start.pose;
     goal_.use_start = true;
+  }
+  bool use_start = false;
+  getInput("use_start", use_start);
+  if (use_start) {
+    goal_.use_start = true;
+    goal_.start = goal_.goals[0];
   }
 }
 
 BT::NodeStatus ComputePathThroughPosesAction::on_success()
 {
-  setOutput("path", result_.result->path);
+  bool extend_path = false;
+  getInput("extend_path", extend_path);
+  if (extend_path) {
+    nav_msgs::msg::Path curr_path;
+    getInput("curr_path", curr_path);
+    // Extend the current path with the new path 
+    curr_path.poses.insert(curr_path.poses.end(), result_.result->path.poses.begin(), result_.result->path.poses.end());
+    setOutput("path", curr_path);
+  } else {
+    // Just return the path from the action server
+    setOutput("path", result_.result->path);
+  }
   // Set empty error code, action was successful
   setOutput("error_code_id", ActionResult::NONE);
   return BT::NodeStatus::SUCCESS;

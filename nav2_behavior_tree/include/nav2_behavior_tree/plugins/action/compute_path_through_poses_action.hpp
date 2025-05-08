@@ -80,11 +80,18 @@ public:
         BT::InputPort<Goals>(
           "goals",
           "Destinations to plan through"),
-        BT::InputPort<geometry_msgs::msg::PoseStamped>(
+        BT::InputPort<nav2_msgs::msg::Waypoint>(
           "start", "Start pose of the path if overriding current robot pose"),
         BT::InputPort<std::string>(
           "planner_id", "",
           "Mapped name to the planner plugin type to use"),
+        BT::InputPort<nav_msgs::msg::Path>("curr_path", "Current path to extend"),
+        BT::InputPort<bool>(
+          "extend_path", false,
+          "If true, extend the current path with the new path"),
+        BT::InputPort<bool>(
+          "use_start", false,
+          "If true, use the start pose as the first waypoint"),
         BT::OutputPort<nav_msgs::msg::Path>("path", "Path created by ComputePathThroughPoses node"),
         BT::OutputPort<ActionResult::_error_code_type>(
           "error_code_id", "The compute path through poses error code"),
