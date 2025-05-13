@@ -66,6 +66,9 @@ public:
         BT::InputPort<int>(
           "nb_goals_to_consider", 5,
           "Number of goals to consider for collision checking"),
+        BT::InputPort<bool>(
+          "update_status", true,
+          "Whether to update the status of the goals"),
         BT::OutputPort<Goals>("output_goals", "Goals with in-collision goals removed"),
       });
   }
@@ -73,6 +76,7 @@ public:
 private:
   bool use_footprint_;
   bool consider_unknown_as_obstacle_;
+  bool update_status_;
   double cost_threshold_;
   Goals input_goals_;
   int nb_goals_to_consider_;
