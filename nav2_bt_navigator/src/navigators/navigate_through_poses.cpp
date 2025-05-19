@@ -45,6 +45,13 @@ NavigateThroughPosesNavigator::configure(
   // Odometry smoother object for getting current speed
   odom_smoother_ = odom_smoother;
 
+  self_client_ = rclcpp_action::create_client<ActionT>(node, getName());
+
+  goal_sub_ = node->create_subscription<geometry_msgs::msg::PoseStamped>(
+    "goal_poses",
+    rclcpp::SystemDefaultsQoS(),
+    std::bind(&NavigateThroughPosesNavigator::onGoalPoseReceived, this, std::placeholders::_1));
+
   return true;
 }
 
@@ -241,6 +248,14 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
   blackboard->set<Goals>(goals_blackboard_id_, std::move(goal_poses));
 
   return true;
+}
+
+void
+NavigateThroughPosesNavigator::onGoalPoseReceived(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
+{
+  ActionT::Goal goal;
+  goal.poses.push_back(*pose);
+  self_client_->async_send_goal(goal);
 }
 
 }  // namespace nav2_bt_navigator
