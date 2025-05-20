@@ -39,6 +39,7 @@ void RemoveInCollisionGoals::on_tick()
   getInput("input_goals", input_goals_);
   getInput("consider_unknown_as_obstacle", consider_unknown_as_obstacle_);
   getInput("nb_goals_to_consider", nb_goals_to_consider_);
+  getInput("update_status", update_status_);
 
   if (input_goals_.empty()) {
     setOutput("output_goals", input_goals_);
@@ -63,7 +64,9 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
   [[maybe_unused]] auto res = config().blackboard->get("goals_feedback", goals_feedback);
   for (int i = static_cast<int>(response->costs.size()) - 1; i >= 0; --i) {
     if ((response->costs[i] != 255 || consider_unknown_as_obstacle_) && response->costs[i] >= cost_threshold_) {
-      goals_feedback[input_goals_[i].index].status = nav2_msgs::msg::Waypoint::SKIPPED;
+      if (update_status_) {
+        goals_feedback[input_goals_[i].index].status = nav2_msgs::msg::Waypoint::SKIPPED;
+      }
       // if it's not valid then we erase it from input_goals_ and set the status to SKIPPED
       input_goals_.erase(input_goals_.begin() + i);
     }

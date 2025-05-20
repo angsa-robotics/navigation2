@@ -433,10 +433,14 @@ void PlannerServer::computePlanThroughPoses()
           curr_start, curr_goal, goal->planner_id,
           cancel_checker);
       } catch (nav2_core::GoalOutsideMapBounds & ex) {
-        RCLCPP_WARN(
-          get_logger(), "Goal %d coordinates of (%.2f, %.2f) was outside bounds",
-          i, curr_goal.pose.position.x, curr_goal.pose.position.y);
-        continue;
+        if (i == 0) {
+          throw ex;
+        } else {
+          RCLCPP_WARN(
+            get_logger(), "Goal %d coordinates of (%.2f, %.2f) was outside bounds but there are still goals inside. Ignoring the rest",
+            i, curr_goal.pose.position.x, curr_goal.pose.position.y);
+          break;
+        }
       } catch (nav2_core::StartOccupied & ex) {
         RCLCPP_WARN(
           get_logger(), "Error START_OCCUPIED but probably 2 goals are just too close to each other.");
