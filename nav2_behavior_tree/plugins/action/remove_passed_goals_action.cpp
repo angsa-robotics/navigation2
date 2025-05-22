@@ -18,6 +18,8 @@
 
 #include "nav_msgs/msg/path.hpp"
 #include "nav2_util/geometry_utils.hpp"
+#include "tf2/utils.h"
+#include "angles/angles.h"
 
 #include "nav2_behavior_tree/plugins/action/remove_passed_goals_action.hpp"
 
@@ -28,12 +30,14 @@ RemovePassedGoals::RemovePassedGoals(
   const std::string & name,
   const BT::NodeConfiguration & conf)
 : BT::ActionNodeBase(name, conf),
-  viapoint_achieved_radius_(0.5)
+  viapoint_achieved_radius_(0.5),
+  viapoint_achieved_yaw_(1.57)
 {}
 
 void RemovePassedGoals::initialize()
 {
   getInput("radius", viapoint_achieved_radius_);
+  getInput("yaw", viapoint_achieved_yaw_); // new input for yaw threshold
 
   tf_ = config().blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
   auto node = config().blackboard->get<rclcpp::Node::SharedPtr>("node");
@@ -79,7 +83,10 @@ inline BT::NodeStatus RemovePassedGoals::tick()
   // Iterate over the first `nb_goals_to_consider` goals
   for (int i = 0; i < nb_goals_to_consider_; ++i) {
     double dist_to_goal = euclidean_distance(goal_poses[i].pose.pose, current_pose.pose);
-    if (dist_to_goal <= viapoint_achieved_radius_) {
+    double yaw_goal = tf2::getYaw(goal_poses[i].pose.pose.orientation);
+    double yaw_current = tf2::getYaw(current_pose.pose.orientation);
+    double yaw_diff = std::fabs(angles::shortest_angular_distance(yaw_current, yaw_goal));
+    if (dist_to_goal <= viapoint_achieved_radius_ && yaw_diff <= viapoint_achieved_yaw_) {
       reached_goal_index = i;
       goal_reached = true;
       break;
