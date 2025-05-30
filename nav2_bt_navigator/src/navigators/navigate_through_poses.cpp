@@ -105,6 +105,16 @@ NavigateThroughPosesNavigator::goalReceived(ActionT::Goal::ConstSharedPtr goal)
     return false;
   }
 
+  // Check that not both goal->poses and goal->waypoint_statuses are set
+  if (!goal->poses.goals.empty() &&
+    !goal->waypoint_statuses.empty())
+  {
+    bt_action_server_->setInternalError(
+      ActionT::Result::UNKNOWN,
+      "Goal contains both poses and waypoint statuses, only one of them should be set.");
+    return false;
+  }
+
   return initializeGoalPoses(goal);
 }
 
@@ -272,16 +282,28 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
     return false;
   }
 
-  nav_msgs::msg::Goals goals_array = goal->poses;
+  std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses = goal->waypoint_statuses;
+
+  if (waypoint_statuses.empty())
+  {
+    for (int i = 0; i < static_cast<int>(goal->poses.goals.size()); ++i) {
+      nav2_msgs::msg::WaypointStatus waypoint_status;
+      waypoint_status.waypoint_index = i;
+      waypoint_status.waypoint_pose = goal->poses.goals[i];
+      waypoint_status.waypoint_status =
+        nav2_msgs::msg::WaypointStatus::PENDING;
+      waypoint_statuses.push_back(waypoint_status);
+    }
+  }
   int i = 0;
-  for (auto & goal_pose : goals_array.goals) {
+  for (auto & goal_pose : waypoint_statuses) {
     if (!nav2_util::transformPoseInTargetFrame(
-        goal_pose, goal_pose, *feedback_utils_.tf, feedback_utils_.global_frame,
+        goal_pose.waypoint_pose, goal_pose.waypoint_pose, *feedback_utils_.tf, feedback_utils_.global_frame,
         feedback_utils_.transform_tolerance))
     {
       bt_action_server_->setInternalError(ActionT::Result::TF_ERROR,
         "Failed to transform a goal pose (" + std::to_string(i) + ") provided with frame_id '" +
-        goal_pose.header.frame_id +
+        goal_pose.waypoint_pose.header.frame_id +
         "' to the global frame '" +
         feedback_utils_.global_frame +
         "'.");
@@ -290,30 +312,32 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
     i++;
   }
 
-  if (goals_array.goals.size() > 0) {
+  if (waypoint_statuses.size() > 0) {
     RCLCPP_INFO(
       logger_, "Begin navigating from current location through %zu poses to (%.2f, %.2f)",
-      goals_array.goals.size(), goals_array.goals.back().pose.position.x,
-        goals_array.goals.back().pose.position.y);
+      waypoint_statuses.size(), waypoint_statuses.back().waypoint_pose.pose.position.x,
+      waypoint_statuses.back().waypoint_pose.pose.position.y);
   }
 
   // Reset state for new action feedback
   start_time_ = clock_->now();
   auto blackboard = bt_action_server_->getBlackboard();
   blackboard->set("number_recoveries", 0);  // NOLINT
+  blackboard->set<decltype(waypoint_statuses)>(waypoint_statuses_blackboard_id_,
+      std::move(waypoint_statuses));
+
+  nav_msgs::msg::Goals goals_array;
+
+  // iterate through the waypoint statuses and add the poses to the goals array but keep only the PENDING ones
+  for (const auto & waypoint_status : waypoint_statuses) {
+    if (waypoint_status.waypoint_status == nav2_msgs::msg::WaypointStatus::PENDING) {
+      goals_array.goals.push_back(waypoint_status.waypoint_pose);
+    }
+  }
 
   // Update the goal pose on the blackboard
   blackboard->set<nav_msgs::msg::Goals>(goals_blackboard_id_,
       std::move(goals_array));
-
-  // Reset the waypoint states vector in the blackboard
-  std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses(goals_array.goals.size());
-  for (size_t waypoint_index = 0 ; waypoint_index < goals_array.goals.size() ; ++waypoint_index) {
-    waypoint_statuses[waypoint_index].waypoint_index = waypoint_index;
-    waypoint_statuses[waypoint_index].waypoint_pose = goals_array.goals[waypoint_index];
-  }
-  blackboard->set<decltype(waypoint_statuses)>(waypoint_statuses_blackboard_id_,
-      std::move(waypoint_statuses));
 
   return true;
 }
