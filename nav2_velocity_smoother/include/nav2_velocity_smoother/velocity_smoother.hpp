@@ -62,6 +62,7 @@ public:
    */
   double findEtaConstraint(
     const double v_curr, const double v_cmd,
+    const double & dt,
     const double accel, const double decel);
 
   /**
@@ -75,6 +76,7 @@ public:
    */
   double applyConstraints(
     const double v_curr, const double v_cmd,
+    const double & dt,
     const double accel, const double decel, const double eta);
 
 protected:

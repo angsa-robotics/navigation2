@@ -221,9 +221,9 @@ inline visualization_msgs::msg::Marker createMarker(
   marker.pose.orientation.y = 0.0;
   marker.pose.orientation.z = 0.0;
   marker.pose.orientation.w = 1.0;
-  marker.scale.x = 0.05;
-  marker.scale.y = 0.05;
-  marker.scale.z = 0.05;
+  marker.scale.x = 0.01;
+  marker.scale.y = 0.01;
+  marker.scale.z = 0.01;
   marker.color.r = 0.0f;
   marker.color.g = 0.0f;
   marker.color.b = 1.0f;

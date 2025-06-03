@@ -27,6 +27,7 @@
 #include "nav2_util/robot_utils.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "nav2_util/odometry_utils.hpp"
+#include "tf2/utils.h"
 
 namespace nav2_bt_navigator
 {

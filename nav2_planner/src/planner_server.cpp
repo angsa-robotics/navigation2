@@ -408,7 +408,7 @@ void PlannerServer::computePlanThroughPoses()
     // Get consecutive paths through these points
     for (unsigned int i = 0; i != goal->goals.goals.size(); i++) {
       // Get starting point
-      if (i == 0) {
+      if (i == 0 || concat_path.poses.empty()) {
         curr_start = start;
       } else {
         // pick the end of the last planning task as the start for the next one
@@ -422,11 +422,26 @@ void PlannerServer::computePlanThroughPoses()
       if (!transformPosesToGlobalFrame(curr_start, curr_goal)) {
         throw nav2_core::PlannerTFError("Unable to transform poses to global frame");
       }
-
+      nav_msgs::msg::Path curr_path;
       // Get plan from start -> goal
-      nav_msgs::msg::Path curr_path = getPlan(
-        curr_start, curr_goal, goal->planner_id,
-        cancel_checker);
+      try {
+        curr_path = getPlan(
+          curr_start, curr_goal, goal->planner_id,
+          cancel_checker);
+      } catch (nav2_core::GoalOutsideMapBounds & ex) {
+        if (i == 0) {
+          throw ex;
+        } else {
+          RCLCPP_WARN(
+            get_logger(), "Goal %d coordinates of (%.2f, %.2f) was outside bounds but there are still goals inside. Ignoring the rest",
+            i, curr_goal.pose.position.x, curr_goal.pose.position.y);
+          break;
+        }
+      } catch (nav2_core::StartOccupied & ex) {
+        RCLCPP_WARN(
+          get_logger(), "Error START_OCCUPIED but probably 2 goals are just too close to each other.");
+        continue;
+      }
 
       if (!validatePath<ActionThroughPoses>(curr_goal, curr_path, goal->planner_id)) {
         throw nav2_core::NoValidPathCouldBeFound(goal->planner_id + " generated a empty path");

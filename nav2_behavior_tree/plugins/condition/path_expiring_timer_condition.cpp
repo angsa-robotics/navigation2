@@ -39,7 +39,7 @@ BT::NodeStatus PathExpiringTimerCondition::tick()
     getInput("path", prev_path_);
     first_time_ = false;
     start_ = node_->now();
-    return BT::NodeStatus::FAILURE;
+    return BT::NodeStatus::SUCCESS;
   }
 
   // Grab the new path

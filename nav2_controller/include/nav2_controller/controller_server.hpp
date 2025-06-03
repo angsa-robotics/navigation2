@@ -177,6 +177,10 @@ protected:
    */
   void publishZeroVelocity();
   /**
+   * @brief Publishes hard stop velocity
+   */
+  void publishHardStopVelocity();
+  /**
    * @brief Called on goal exit
    */
   void onGoalExit();
