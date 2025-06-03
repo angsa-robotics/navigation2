@@ -323,8 +323,7 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
   start_time_ = clock_->now();
   auto blackboard = bt_action_server_->getBlackboard();
   blackboard->set("number_recoveries", 0);  // NOLINT
-  blackboard->set<decltype(waypoint_statuses)>(waypoint_statuses_blackboard_id_,
-      std::move(waypoint_statuses));
+
 
   nav_msgs::msg::Goals goals_array;
 
@@ -338,6 +337,8 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
   // Update the goal pose on the blackboard
   blackboard->set<nav_msgs::msg::Goals>(goals_blackboard_id_,
       std::move(goals_array));
+  blackboard->set<decltype(waypoint_statuses)>(waypoint_statuses_blackboard_id_,
+      waypoint_statuses);
 
   return true;
 }
