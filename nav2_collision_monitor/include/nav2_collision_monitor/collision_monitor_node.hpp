@@ -43,6 +43,7 @@
 #include "nav2_collision_monitor/pointcloud.hpp"
 #include "nav2_collision_monitor/range.hpp"
 #include "nav2_collision_monitor/polygon_source.hpp"
+#include "nav2_collision_monitor/occupancy_grid.hpp"
 
 namespace nav2_collision_monitor
 {

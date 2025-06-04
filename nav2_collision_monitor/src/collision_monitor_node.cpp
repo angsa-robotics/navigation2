@@ -385,8 +385,13 @@ bool CollisionMonitor::configureSources(
           node, source_name, tf_buffer_, base_frame_id, odom_frame_id,
           transform_tolerance, source_timeout, base_shift_correction);
         ps->configure();
-
         sources_.push_back(ps);
+      } else if (source_type == "occupancy_grid") {
+        std::shared_ptr<OccupancyGridSource> ogs = std::make_shared<OccupancyGridSource>(
+          node, source_name, tf_buffer_, base_frame_id, odom_frame_id,
+          transform_tolerance, source_timeout, base_shift_correction);
+        ogs->configure();
+        sources_.push_back(ogs);
       } else {  // Error if something else
         RCLCPP_ERROR(
           get_logger(),
