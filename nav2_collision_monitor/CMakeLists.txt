@@ -17,6 +17,7 @@ find_package(nav2_util REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 ### Header ###
 
@@ -41,6 +42,7 @@ set(dependencies
   nav2_costmap_2d
   nav2_msgs
   visualization_msgs
+  nav_msgs
 )
 
 set(monitor_executable_name collision_monitor)
@@ -59,6 +61,7 @@ add_library(${monitor_library_name} SHARED
   src/polygon_source.cpp
   src/range.cpp
   src/kinematics.cpp
+  src/occupancy_grid.cpp
 )
 add_library(${detector_library_name} SHARED
   src/collision_detector_node.cpp
@@ -71,6 +74,7 @@ add_library(${detector_library_name} SHARED
   src/polygon_source.cpp
   src/range.cpp
   src/kinematics.cpp
+  src/occupancy_grid.cpp
 )
 
 add_executable(${monitor_executable_name}
