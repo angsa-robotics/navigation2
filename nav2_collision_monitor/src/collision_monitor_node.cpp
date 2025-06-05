@@ -591,9 +591,9 @@ bool CollisionMonitor::processApproach(
     double min_collision_distance = polygon->getMinCollisionDistance();
     if (collision_info.distance < min_collision_distance) {
       change_ratio = 0.0;
-      RCLCPP_INFO(
-        rclcpp::get_logger("collision_monitor"),
-        "Stopping due to proximity: distance to collision point %.2f m (minimum: %.2f m)",
+      RCLCPP_WARN_THROTTLE(
+        get_logger(), *get_clock(), 1000, "Collision distance (%f) is less than minimum (%f). "
+        "Setting change ratio to 0.0",
         collision_info.distance, min_collision_distance);
     } else {
       // If collision will occur, determine safety factor
