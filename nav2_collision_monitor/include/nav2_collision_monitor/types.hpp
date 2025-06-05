@@ -71,6 +71,13 @@ enum ActionType
   LIMIT = 4  // Limit absolute velocity from current operating speed
 };
 
+/// @brief Collision information
+struct CollisionInfo
+{
+  double time;      // Time before collision, negative if no collision
+  double distance;  // Distance from current pose to collision pose
+};
+
 /// @brief Action for robot
 struct Action
 {

@@ -122,6 +122,13 @@ public:
   double getTimeBeforeCollision() const;
 
   /**
+   * @brief Obtains minimum distance to collision for current polygon.
+   * Applicable for APPROACH model.
+   * @return Minimum distance to collision in meters
+   */
+  double getMinCollisionDistance() const;
+
+  /**
    * @brief Gets polygon points
    * @param poly Output polygon points (vertices)
    */
@@ -164,15 +171,15 @@ public:
     const std::unordered_map<std::string, std::vector<Point>> & sources_collision_points_map) const;
 
   /**
-   * @brief Obtains estimated (simulated) time before a collision.
+   * @brief Obtains estimated (simulated) time before a collision and additional collision information.
    * Applicable for APPROACH model.
    * @param sources_collision_points_map Map containing source name as key,
    * and input array of source's 2D obstacle points as value
    * @param velocity Simulated robot velocity
-   * @return Estimated time before a collision. If there is no collision,
-   * return value will be negative.
+   * @return CollisionInfo structure containing time before collision, distance to collision 
+   * and yaw difference. If there is no collision, time will be negative.
    */
-  double getCollisionTime(
+  CollisionInfo getCollisionTime(
     const std::unordered_map<std::string, std::vector<Point>> & sources_collision_points_map,
     const Velocity & velocity) const;
 
@@ -278,6 +285,8 @@ protected:
   double angular_limit_;
   /// @brief Time before collision in seconds
   double time_before_collision_;
+  /// @brief Minimum distance threshold between current pose and simulated collision pose 
+  double min_collision_distance_;
   /// @brief Time step for robot movement simulation
   double simulation_time_step_;
   /// @brief Whether polygon is enabled
