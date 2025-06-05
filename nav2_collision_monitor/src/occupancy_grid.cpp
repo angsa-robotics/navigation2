@@ -79,8 +79,8 @@ bool OccupancyGridSource::getData(
     for (unsigned int x = 0; x < grid.info.width; ++x) {
       int idx = y * grid.info.width + x;
       if (grid.data[idx] >= occupied_threshold_) {
-        double wx = grid.info.origin.position.x + x * grid.info.resolution;
-        double wy = grid.info.origin.position.y + y * grid.info.resolution;
+        double wx = grid.info.origin.position.x + (x + 0.5) * grid.info.resolution;
+        double wy = grid.info.origin.position.y + (y + 0.5) * grid.info.resolution;
         tf2::Vector3 p_v3_s(wx, wy, 0.0);
         tf2::Vector3 p_v3_b = tf_transform * p_v3_s;
         data.push_back({p_v3_b.x(), p_v3_b.y()});
