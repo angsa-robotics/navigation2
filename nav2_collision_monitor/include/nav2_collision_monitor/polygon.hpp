@@ -164,15 +164,15 @@ public:
     const std::unordered_map<std::string, std::vector<Point>> & sources_collision_points_map) const;
 
   /**
-   * @brief Obtains estimated (simulated) time before a collision.
+   * @brief Obtains estimated (simulated) time before a collision and additional collision information.
    * Applicable for APPROACH model.
    * @param sources_collision_points_map Map containing source name as key,
    * and input array of source's 2D obstacle points as value
    * @param velocity Simulated robot velocity
-   * @return Estimated time before a collision. If there is no collision,
-   * return value will be negative.
+   * @return CollisionInfo structure containing time before collision, distance to collision 
+   * and yaw difference. If there is no collision, time will be negative.
    */
-  double getCollisionTime(
+  CollisionInfo getCollisionTime(
     const std::unordered_map<std::string, std::vector<Point>> & sources_collision_points_map,
     const Velocity & velocity) const;
 

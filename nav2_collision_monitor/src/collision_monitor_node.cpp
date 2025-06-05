@@ -584,11 +584,24 @@ bool CollisionMonitor::processApproach(
     return false;
   }
 
-  // Obtain time before a collision
-  const double collision_time = polygon->getCollisionTime(sources_collision_points_map, velocity);
-  if (collision_time >= 0.0) {
-    // If collision will occurr, reduce robot speed
-    const double change_ratio = collision_time / polygon->getTimeBeforeCollision();
+  // Obtain collision information
+  const CollisionInfo collision_info = polygon->getCollisionTime(sources_collision_points_map, velocity);
+  if (collision_info.time >= 0.0) {
+    // If collision will occur, determine safety factor
+    double change_ratio = collision_info.time / polygon->getTimeBeforeCollision();
+    
+    // Define threshold for minimum safe distance
+    constexpr double min_safe_distance = 0.2;  // meters
+    
+    // If too close to an obstacle, stop (this covers both translation and rotation cases)
+    if (collision_info.distance < min_safe_distance) {
+      change_ratio = 0.0;
+      RCLCPP_INFO(
+        rclcpp::get_logger("collision_monitor"),
+        "Stopping due to proximity: distance %.2f m,",
+        collision_info.distance);
+    }
+    
     const Velocity safe_vel = velocity * change_ratio;
     // Check that currently calculated velocity is safer than
     // chosen for previous shapes one

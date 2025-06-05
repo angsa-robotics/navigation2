@@ -252,10 +252,12 @@ int Polygon::getPointsInside(
   return num;
 }
 
-double Polygon::getCollisionTime(
+CollisionInfo Polygon::getCollisionTime(
   const std::unordered_map<std::string, std::vector<Point>> & sources_collision_points_map,
   const Velocity & velocity) const
 {
+  CollisionInfo info = {-1.0, 0.0};  // Default: no collision
+  
   // Initial robot pose is {0,0} in base_footprint coordinates
   Pose pose = {0.0, 0.0, 0.0};
   Velocity vel = velocity;
@@ -276,7 +278,9 @@ double Polygon::getCollisionTime(
 
   // Check static polygon
   if (getPointsInside(collision_points) >= min_points_) {
-    return 0.0;
+    info.time = 0.0;
+    info.distance = 0.0;
+    return info;
   }
 
   // Robot movement simulation
@@ -290,12 +294,15 @@ double Polygon::getCollisionTime(
     // If the collision occurred on this stage, return the actual time before a collision
     // as if robot was moved with given velocity
     if (getPointsInside(points_transformed) >= min_points_) {
-      return time;
+      info.time = time;
+      // Calculate distance from origin to collision pose
+      info.distance = std::sqrt(pose.x * pose.x + pose.y * pose.y);
+      return info;
     }
   }
 
   // There is no collision
-  return -1.0;
+  return info;
 }
 
 void Polygon::publish()
