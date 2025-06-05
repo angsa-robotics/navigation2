@@ -157,6 +157,11 @@ double Polygon::getTimeBeforeCollision() const
   return time_before_collision_;
 }
 
+double Polygon::getMinCollisionDistance() const
+{
+  return min_collision_distance_;
+}
+
 std::vector<std::string> Polygon::getSourcesNames() const
 {
   return sources_names_;
@@ -400,6 +405,9 @@ bool Polygon::getCommonParameters(
         node, polygon_name_ + ".simulation_time_step", rclcpp::ParameterValue(0.1));
       simulation_time_step_ =
         node->get_parameter(polygon_name_ + ".simulation_time_step").as_double();
+      nav2_util::declare_parameter_if_not_declared(
+        node, polygon_name_ + ".min_collision_distance", rclcpp::ParameterValue(0.2));
+      min_collision_distance_ = node->get_parameter(polygon_name_ + ".min_collision_distance").as_double();
     }
 
     nav2_util::declare_parameter_if_not_declared(

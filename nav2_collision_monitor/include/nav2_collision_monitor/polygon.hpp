@@ -122,6 +122,13 @@ public:
   double getTimeBeforeCollision() const;
 
   /**
+   * @brief Obtains minimum distance to collision for current polygon.
+   * Applicable for APPROACH model.
+   * @return Minimum distance to collision in meters
+   */
+  double getMinCollisionDistance() const;
+
+  /**
    * @brief Gets polygon points
    * @param poly Output polygon points (vertices)
    */
@@ -278,6 +285,8 @@ protected:
   double angular_limit_;
   /// @brief Time before collision in seconds
   double time_before_collision_;
+  /// @brief Minimum distance threshold between current pose and simulated collision pose 
+  double min_collision_distance_;
   /// @brief Time step for robot movement simulation
   double simulation_time_step_;
   /// @brief Whether polygon is enabled
