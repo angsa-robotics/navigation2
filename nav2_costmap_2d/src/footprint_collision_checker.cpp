@@ -148,11 +148,6 @@ double FootprintCollisionChecker<CostmapT>::fullFootprintCost(const Footprint & 
 {
   // NOTE: This implementation assumes a rectangular footprint for simplicity.
   // For a general polygon, a more sophisticated polygon fill algorithm would be needed.
-  
-  if (footprint.size() < 3) {
-    return static_cast<double>(NO_INFORMATION);
-  }
-
   // Check the perimeter first - if it's lethal, no need to check interior
   double perimeter_cost = footprintCost(footprint);
   if (perimeter_cost == static_cast<double>(LETHAL_OBSTACLE)) {
