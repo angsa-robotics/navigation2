@@ -150,7 +150,7 @@ bool GridCollisionChecker::inCollision(
       current_footprint.push_back(new_pt);
     }
 
-    float footprint_cost = static_cast<float>(footprintCost(current_footprint));
+    float footprint_cost = static_cast<float>(fullFootprintCost(current_footprint));
 
     if (footprint_cost == UNKNOWN && traverse_unknown) {
       return false;

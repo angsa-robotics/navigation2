@@ -79,6 +79,10 @@ public:
   {
     return costmap_;
   }
+  /**
+   * @brief Returns the maximum cost of all cells inside the footprint polygon, or LETHAL_OBSTACLE if found
+   */
+  double fullFootprintCost(const Footprint & footprint);
 
 protected:
   CostmapT costmap_;

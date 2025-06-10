@@ -143,6 +143,56 @@ double FootprintCollisionChecker<CostmapT>::footprintCostAtPose(
   return footprintCost(oriented_footprint);
 }
 
+template<typename CostmapT>
+double FootprintCollisionChecker<CostmapT>::fullFootprintCost(const Footprint & footprint) {
+  // Helper: Ray casting algorithm for point-in-polygon test
+  auto pointInPolygon = [](int x, int y, const std::vector<std::pair<int, int>> &polygon) {
+    bool inside = false;
+    size_t n = polygon.size();
+    for (size_t i = 0, j = n - 1; i < n; j = i++) {
+      int xi = polygon[i].first, yi = polygon[i].second;
+      int xj = polygon[j].first, yj = polygon[j].second;
+      bool intersect = ((yi > y) != (yj > y)) &&
+        (x < (xj - xi) * (y - yi) / (double)(yj - yi + 1e-9) + xi);
+      if (intersect)
+        inside = !inside;
+    }
+    return inside;
+  };
+
+  int min_x = std::numeric_limits<int>::max();
+  int max_x = std::numeric_limits<int>::min();
+  int min_y = std::numeric_limits<int>::max();
+  int max_y = std::numeric_limits<int>::min();
+
+  std::vector<std::pair<int, int>> map_footprint;
+  for (const auto & pt : footprint) {
+    unsigned int mx, my;
+    if (!worldToMap(pt.x, pt.y, mx, my)) {
+      return static_cast<double>(NO_INFORMATION);
+    }
+    map_footprint.emplace_back(mx, my);
+    min_x = std::min(min_x, static_cast<int>(mx));
+    max_x = std::max(max_x, static_cast<int>(mx));
+    min_y = std::min(min_y, static_cast<int>(my));
+    max_y = std::max(max_y, static_cast<int>(my));
+  }
+
+  double footprint_cost = 0.0;
+  for (int x = min_x; x <= max_x; ++x) {
+    for (int y = min_y; y <= max_y; ++y) {
+      if (pointInPolygon(x, y, map_footprint)) {
+        double cell_cost = pointCost(x, y);
+        if (cell_cost == static_cast<double>(LETHAL_OBSTACLE)) {
+          return cell_cost;
+        }
+        footprint_cost = std::max(footprint_cost, cell_cost);
+      }
+    }
+  }
+  return footprint_cost;
+}
+
 // declare our valid template parameters
 template class FootprintCollisionChecker<std::shared_ptr<nav2_costmap_2d::Costmap2D>>;
 template class FootprintCollisionChecker<nav2_costmap_2d::Costmap2D *>;
