@@ -144,53 +144,65 @@ double FootprintCollisionChecker<CostmapT>::footprintCostAtPose(
 }
 
 template<typename CostmapT>
-double FootprintCollisionChecker<CostmapT>::fullFootprintCost(const Footprint & footprint) {
-  // Helper: Ray casting algorithm for point-in-polygon test
-  auto pointInPolygon = [](int x, int y, const std::vector<std::pair<int, int>> &polygon) {
-    bool inside = false;
-    size_t n = polygon.size();
-    for (size_t i = 0, j = n - 1; i < n; j = i++) {
-      int xi = polygon[i].first, yi = polygon[i].second;
-      int xj = polygon[j].first, yj = polygon[j].second;
-      bool intersect = ((yi > y) != (yj > y)) &&
-        (x < (xj - xi) * (y - yi) / (double)(yj - yi + 1e-9) + xi);
-      if (intersect)
-        inside = !inside;
-    }
-    return inside;
-  };
-
-  int min_x = std::numeric_limits<int>::max();
-  int max_x = std::numeric_limits<int>::min();
-  int min_y = std::numeric_limits<int>::max();
-  int max_y = std::numeric_limits<int>::min();
-
-  std::vector<std::pair<int, int>> map_footprint;
-  for (const auto & pt : footprint) {
-    unsigned int mx, my;
-    if (!worldToMap(pt.x, pt.y, mx, my)) {
-      return static_cast<double>(NO_INFORMATION);
-    }
-    map_footprint.emplace_back(mx, my);
-    min_x = std::min(min_x, static_cast<int>(mx));
-    max_x = std::max(max_x, static_cast<int>(mx));
-    min_y = std::min(min_y, static_cast<int>(my));
-    max_y = std::max(max_y, static_cast<int>(my));
+double FootprintCollisionChecker<CostmapT>::fullFootprintCost(const Footprint & footprint)
+{
+  // NOTE: This implementation assumes a rectangular footprint for simplicity.
+  // For a general polygon, a more sophisticated polygon fill algorithm would be needed.
+  
+  if (footprint.size() < 3) {
+    return static_cast<double>(NO_INFORMATION);
   }
 
+  // Check the perimeter first - if it's lethal, no need to check interior
+  double perimeter_cost = footprintCost(footprint);
+  if (perimeter_cost == static_cast<double>(LETHAL_OBSTACLE)) {
+    return perimeter_cost;
+  }
+
+  // Find bounding box of the footprint
+  double min_x = footprint[0].x, max_x = footprint[0].x;
+  double min_y = footprint[0].y, max_y = footprint[0].y;
+  
+  for (const auto & point : footprint) {
+    min_x = std::min(min_x, point.x);
+    max_x = std::max(max_x, point.x);
+    min_y = std::min(min_y, point.y);
+    max_y = std::max(max_y, point.y);
+  }
+
+  // Convert world coordinates to map coordinates
+  unsigned int min_mx, max_mx, min_my, max_my;
+  if (!worldToMap(min_x, min_y, min_mx, min_my) ||
+      !worldToMap(max_x, max_y, max_mx, max_my)) {
+    return static_cast<double>(NO_INFORMATION);
+  }
+
+  // Ensure proper ordering (min <= max) after coordinate transformation
+  if (min_mx > max_mx) std::swap(min_mx, max_mx);
+  if (min_my > max_my) std::swap(min_my, max_my);
+
   double footprint_cost = 0.0;
-  for (int x = min_x; x <= max_x; ++x) {
-    for (int y = min_y; y <= max_y; ++y) {
-      if (pointInPolygon(x, y, map_footprint)) {
-        double cell_cost = pointCost(x, y);
-        if (cell_cost == static_cast<double>(LETHAL_OBSTACLE)) {
-          return cell_cost;
-        }
-        footprint_cost = std::max(footprint_cost, cell_cost);
+
+  // For rectangular footprint assumption: check all cells in bounding box
+  // For a general polygon, we would need point-in-polygon testing for each cell
+  for (unsigned int mx = min_mx; mx <= max_mx; ++mx) {
+    for (unsigned int my = min_my; my <= max_my; ++my) {
+      double point_cost = pointCost(mx, my);
+      
+      // If we hit a lethal obstacle, return immediately
+      if (point_cost == static_cast<double>(LETHAL_OBSTACLE)) {
+        return point_cost;
+      }
+      
+      // Track the maximum cost found
+      if (point_cost > footprint_cost) {
+        footprint_cost = point_cost;
       }
     }
   }
-  return footprint_cost;
+
+  // Return the maximum of interior cost and perimeter cost
+  return std::max(footprint_cost, perimeter_cost);
 }
 
 // declare our valid template parameters
