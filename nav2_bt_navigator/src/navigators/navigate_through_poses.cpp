@@ -27,8 +27,9 @@ NavigateThroughPosesNavigator::configure(
   rclcpp_lifecycle::LifecycleNode::WeakPtr parent_node,
   std::shared_ptr<nav2_util::OdomSmoother> odom_smoother)
 {
-  start_time_ = rclcpp::Time(0);
   auto node = parent_node.lock();
+  start_time_ = rclcpp::Time(0, 0, node->get_clock()->get_clock_type());
+  last_feedback_time_ = rclcpp::Time(0, 0, node->get_clock()->get_clock_type());
 
   if (!node->has_parameter("goals_blackboard_id")) {
     node->declare_parameter("goals_blackboard_id", std::string("goals"));
@@ -156,85 +157,94 @@ NavigateThroughPosesNavigator::goalCompleted(
 void
 NavigateThroughPosesNavigator::onLoop()
 {
-  using namespace nav2_util::geometry_utils;  // NOLINT
+  if (clock_->now() - last_feedback_time_ > rclcpp::Duration::from_seconds(0.2)) {
+    using namespace nav2_util::geometry_utils;  // NOLINT
 
-  // action server feedback (pose, duration of task,
-  // number of recoveries, and distance remaining to goal, etc)
-  auto feedback_msg = std::make_shared<ActionT::Feedback>();
+    // action server feedback (pose, duration of task,
+    // number of recoveries, and distance remaining to goal, etc)
+    auto feedback_msg = std::make_shared<ActionT::Feedback>();
 
-  auto blackboard = bt_action_server_->getBlackboard();
+    auto blackboard = bt_action_server_->getBlackboard();
 
-  nav_msgs::msg::Goals goal_poses;
-  [[maybe_unused]] auto res = blackboard->get(goals_blackboard_id_, goal_poses);
+    nav_msgs::msg::Goals goal_poses;
+    [[maybe_unused]] auto res = blackboard->get(goals_blackboard_id_, goal_poses);
 
-  feedback_msg->waypoint_statuses =
-    blackboard->get<std::vector<nav2_msgs::msg::WaypointStatus>>(waypoint_statuses_blackboard_id_);
+    auto waypoint_statuses = blackboard->get<std::vector<nav2_msgs::msg::WaypointStatus>>(
+      waypoint_statuses_blackboard_id_);
+    std::vector<uint8_t> waypoint_status_array;
+    waypoint_status_array.reserve(waypoint_statuses.size());
+    for (const auto & status : waypoint_statuses) {
+      waypoint_status_array.push_back(static_cast<uint8_t>(status.waypoint_status));
+    }
+    feedback_msg->waypoint_statuses = waypoint_status_array;
 
-  if (goal_poses.goals.size() == 0) {
-    bt_action_server_->publishFeedback(feedback_msg);
-    return;
-  }
-
-  geometry_msgs::msg::PoseStamped current_pose;
-  if (!nav2_util::getCurrentPose(
-      current_pose, *feedback_utils_.tf,
-      feedback_utils_.global_frame, feedback_utils_.robot_frame,
-      feedback_utils_.transform_tolerance))
-  {
-    RCLCPP_ERROR(logger_, "Robot pose is not available.");
-    return;
-  }
-
-  // Get current path points
-  nav_msgs::msg::Path current_path;
-  res = blackboard->get(path_blackboard_id_, current_path);
-  if (res && current_path.poses.size() > 0u) {
-    // Find the closest pose to current pose on global path
-    auto find_closest_pose_idx =
-      [&current_pose, &current_path]() {
-        size_t closest_pose_idx = 0;
-        double curr_min_dist = std::numeric_limits<double>::max();
-        for (size_t curr_idx = 0; curr_idx < current_path.poses.size(); ++curr_idx) {
-          double curr_dist = nav2_util::geometry_utils::euclidean_distance(
-            current_pose, current_path.poses[curr_idx]);
-          if (curr_dist < curr_min_dist) {
-            curr_min_dist = curr_dist;
-            closest_pose_idx = curr_idx;
-          }
-        }
-        return closest_pose_idx;
-      };
-
-    // Calculate distance on the path
-    double distance_remaining =
-      nav2_util::geometry_utils::calculate_path_length(current_path, find_closest_pose_idx());
-
-    // Default value for time remaining
-    rclcpp::Duration estimated_time_remaining = rclcpp::Duration::from_seconds(0.0);
-
-    // Get current speed
-    geometry_msgs::msg::Twist current_odom = odom_smoother_->getTwist();
-    double current_linear_speed = std::hypot(current_odom.linear.x, current_odom.linear.y);
-
-    // Calculate estimated time taken to goal if speed is higher than 1cm/s
-    // and at least 10cm to go
-    if ((std::abs(current_linear_speed) > 0.01) && (distance_remaining > 0.1)) {
-      estimated_time_remaining =
-        rclcpp::Duration::from_seconds(distance_remaining / std::abs(current_linear_speed));
+    if (goal_poses.goals.size() == 0) {
+      bt_action_server_->publishFeedback(feedback_msg);
+      return;
     }
 
-    feedback_msg->distance_remaining = distance_remaining;
-    feedback_msg->estimated_time_remaining = estimated_time_remaining;
+    geometry_msgs::msg::PoseStamped current_pose;
+    if (!nav2_util::getCurrentPose(
+        current_pose, *feedback_utils_.tf,
+        feedback_utils_.global_frame, feedback_utils_.robot_frame,
+        feedback_utils_.transform_tolerance))
+    {
+      RCLCPP_ERROR(logger_, "Robot pose is not available.");
+      return;
+    }
+
+    // // Get current path points
+    // nav_msgs::msg::Path current_path;
+    // res = blackboard->get(path_blackboard_id_, current_path);
+    // if (res && current_path.poses.size() > 0u) {
+    //   // Find the closest pose to current pose on global path
+    //   auto find_closest_pose_idx =
+    //     [&current_pose, &current_path]() {
+    //       size_t closest_pose_idx = 0;
+    //       double curr_min_dist = std::numeric_limits<double>::max();
+    //       for (size_t curr_idx = 0; curr_idx < current_path.poses.size(); ++curr_idx) {
+    //         double curr_dist = nav2_util::geometry_utils::euclidean_distance(
+    //           current_pose, current_path.poses[curr_idx]);
+    //         if (curr_dist < curr_min_dist) {
+    //           curr_min_dist = curr_dist;
+    //           closest_pose_idx = curr_idx;
+    //         }
+    //       }
+    //       return closest_pose_idx;
+    //     };
+
+      // // Calculate distance on the path
+      // double distance_remaining =
+      //   nav2_util::geometry_utils::calculate_path_length(current_path, find_closest_pose_idx());
+
+      // // Default value for time remaining
+      // rclcpp::Duration estimated_time_remaining = rclcpp::Duration::from_seconds(0.0);
+
+      // // Get current speed
+      // geometry_msgs::msg::Twist current_odom = odom_smoother_->getTwist();
+      // double current_linear_speed = std::hypot(current_odom.linear.x, current_odom.linear.y);
+
+      // // Calculate estimated time taken to goal if speed is higher than 1cm/s
+      // // and at least 10cm to go
+      // if ((std::abs(current_linear_speed) > 0.01) && (distance_remaining > 0.1)) {
+      //   estimated_time_remaining =
+      //     rclcpp::Duration::from_seconds(distance_remaining / std::abs(current_linear_speed));
+      // }
+
+      // feedback_msg->distance_remaining = distance_remaining;
+      // feedback_msg->estimated_time_remaining = estimated_time_remaining;
+    // }
+
+    // int recovery_count = 0;
+    // res = blackboard->get("number_recoveries", recovery_count);
+    // feedback_msg->number_of_recoveries = recovery_count;
+    feedback_msg->current_pose = current_pose;
+    // feedback_msg->navigation_time = clock_->now() - start_time_;
+    // feedback_msg->number_of_poses_remaining = goal_poses.goals.size();
+
+    bt_action_server_->publishFeedback(feedback_msg);
+    last_feedback_time_ = clock_->now();
   }
-
-  int recovery_count = 0;
-  res = blackboard->get("number_recoveries", recovery_count);
-  feedback_msg->number_of_recoveries = recovery_count;
-  feedback_msg->current_pose = current_pose;
-  feedback_msg->navigation_time = clock_->now() - start_time_;
-  feedback_msg->number_of_poses_remaining = goal_poses.goals.size();
-
-  bt_action_server_->publishFeedback(feedback_msg);
 }
 
 void
