@@ -1458,13 +1458,14 @@ Nav2Panel::getNavToPoseFeedbackLabel(nav2_msgs::action::NavigateToPose::Feedback
 }
 
 inline QString
-Nav2Panel::getNavThroughPosesFeedbackLabel(nav2_msgs::action::NavigateThroughPoses::Feedback msg)
+Nav2Panel::getNavThroughPosesFeedbackLabel(nav2_msgs::action::NavigateThroughPoses::Feedback /*msg*/)
 {
-  return QString(
-    std::string(
-      "<table><tr><td width=150>Poses remaining:</td><td>" +
-      std::to_string(msg.number_of_poses_remaining) +
-      "</td></tr>" + toLabel(msg) + "</table>").c_str());
+  return QString(std::string().c_str());
+  // return QString(
+  //   std::string(
+  //     "<table><tr><td width=150>Poses remaining:</td><td>" +
+  //     std::to_string(msg.number_of_poses_remaining) +
+  //     "</td></tr>" + toLabel(msg) + "</table>").c_str());
 }
 
 template<typename T>
