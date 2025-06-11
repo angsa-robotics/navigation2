@@ -40,7 +40,6 @@ void RemoveInCollisionGoals::on_tick()
   getInput("input_goals", input_goals_);
   getInput("consider_unknown_as_obstacle", consider_unknown_as_obstacle_);
   getInput("nb_goals_to_consider", nb_goals_to_consider_);
-  getInput("update_status", update_status_);
 
   if (input_goals_.goals.empty()) {
     setOutput("output_goals", input_goals_);
@@ -72,19 +71,15 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
   // get the `waypoint_statuses` vector
   std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses;
   auto waypoint_statuses_get_res = getInput("input_waypoint_statuses", waypoint_statuses);
-  if (!waypoint_statuses_get_res) {
-    RCLCPP_ERROR(node_->get_logger(), "Missing [input_waypoint_statuses] port input!");
-  }
 
   for (int i = static_cast<int>(response->costs.size()) - 1; i >= 0; --i) {
     if ((response->costs[i] != 255 || consider_unknown_as_obstacle_) && response->costs[i] >= cost_threshold_) {
-      if (update_status_) {
-        auto cur_waypoint_index =
-          nav2_util::geometry_utils::find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, input_goals_.goals[i]);
-        waypoint_statuses[cur_waypoint_index].waypoint_status =
-          nav2_msgs::msg::WaypointStatus::SKIPPED;
+      if (waypoint_statuses_get_res) {
+          auto cur_waypoint_index =
+            nav2_util::geometry_utils::find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, input_goals_.goals[i]);
+          waypoint_statuses.at(cur_waypoint_index).waypoint_status =
+            nav2_msgs::msg::WaypointStatus::SKIPPED;
       }
-      // if it's not valid then we erase it from input_goals_ and set the status to SKIPPED
       input_goals_.goals.erase(input_goals_.goals.begin() + i);
     }
   }

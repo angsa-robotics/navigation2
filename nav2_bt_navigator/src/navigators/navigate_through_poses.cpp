@@ -312,12 +312,11 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
     i++;
   }
 
-  if (waypoint_statuses.size() > 0) {
-    RCLCPP_INFO(
-      logger_, "Begin navigating from current location through %zu poses to (%.2f, %.2f)",
-      waypoint_statuses.size(), waypoint_statuses.back().waypoint_pose.pose.position.x,
-      waypoint_statuses.back().waypoint_pose.pose.position.y);
-  }
+  RCLCPP_INFO(
+    logger_, "Begin navigating from current location through %zu poses to (%.2f, %.2f)",
+    waypoint_statuses.size(), waypoint_statuses.back().waypoint_pose.pose.position.x,
+    waypoint_statuses.back().waypoint_pose.pose.position.y);
+  
 
   // Reset state for new action feedback
   start_time_ = clock_->now();

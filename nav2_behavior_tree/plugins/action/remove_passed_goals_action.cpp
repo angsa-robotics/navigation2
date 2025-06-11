@@ -76,9 +76,6 @@ inline BT::NodeStatus RemovePassedGoals::tick()
   // get the `waypoint_statuses` vector
   std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses;
   auto waypoint_statuses_get_res = getInput("input_waypoint_statuses", waypoint_statuses);
-  if (!waypoint_statuses_get_res) {
-    RCLCPP_ERROR_ONCE(node_->get_logger(), "Missing [input_waypoint_statuses] port input!");
-  }
 
   bool goal_reached = false;
   int reached_goal_index = -1;
@@ -97,13 +94,15 @@ inline BT::NodeStatus RemovePassedGoals::tick()
   }
   if (goal_reached) {
 
-    // Mark reached goal as COMPLETED and all previous ones as SKIPPED
-    for (int i = 0; i <= reached_goal_index; ++i) {
-    auto cur_waypoint_index =
-      find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, goal_poses.goals[i]);
-    waypoint_statuses[cur_waypoint_index].waypoint_status =
-      (i == reached_goal_index) ? nav2_msgs::msg::WaypointStatus::COMPLETED
-                                : nav2_msgs::msg::WaypointStatus::SKIPPED;
+    if (waypoint_statuses_get_res) {
+      // Mark reached goal as COMPLETED and all previous ones as SKIPPED
+      for (int i = 0; i <= reached_goal_index; ++i) {
+      auto cur_waypoint_index =
+        find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, goal_poses.goals[i]);
+      waypoint_statuses.at(cur_waypoint_index).waypoint_status =
+        (i == reached_goal_index) ? nav2_msgs::msg::WaypointStatus::COMPLETED
+                                  : nav2_msgs::msg::WaypointStatus::SKIPPED;
+      }
     }
     // If the reached goal is NOT the last one, erase all COMPLETED and SKIPPED goals
     if (reached_goal_index < static_cast<int>(goal_poses.goals.size()) - 1) {

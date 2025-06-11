@@ -186,11 +186,11 @@ inline double calculate_path_length(const nav_msgs::msg::Path & path, size_t sta
 }
 
 /**
- * @brief Find the index of the first goal in `PENDING` status matching the
+ * @brief Find the index of the first goal matching the
  * given target pose.
  * @param waypoint_statuses List of waypoint statuses to search through.
  * @param goal Target pose to match against waypoint goals.
- * @return Index of the first matching goal in PENDING status, -1 if not found.
+ * @return Index of the first matching goal, -1 if not found.
  */
 inline int find_next_matching_goal_in_waypoint_statuses(
   const std::vector<nav2_msgs::msg::WaypointStatus> & waypoint_statuses,
@@ -198,8 +198,7 @@ inline int find_next_matching_goal_in_waypoint_statuses(
 {
   auto itr = std::find_if(waypoint_statuses.begin(), waypoint_statuses.end(),
       [&goal](const nav2_msgs::msg::WaypointStatus & status){
-        return status.waypoint_pose == goal &&
-               status.waypoint_status == nav2_msgs::msg::WaypointStatus::PENDING;
+        return status.waypoint_pose == goal;
     });
 
   if (itr == waypoint_statuses.end()) {
