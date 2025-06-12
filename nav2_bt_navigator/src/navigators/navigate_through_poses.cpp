@@ -27,8 +27,9 @@ NavigateThroughPosesNavigator::configure(
   rclcpp_lifecycle::LifecycleNode::WeakPtr parent_node,
   std::shared_ptr<nav2_util::OdomSmoother> odom_smoother)
 {
-  start_time_ = rclcpp::Time(0);
   auto node = parent_node.lock();
+  start_time_ = rclcpp::Time(0, 0, node->get_clock()->get_clock_type());
+  last_feedback_time_ = rclcpp::Time(0, 0, node->get_clock()->get_clock_type());
 
   if (!node->has_parameter("goals_blackboard_id")) {
     node->declare_parameter("goals_blackboard_id", std::string("goals"));
@@ -63,6 +64,12 @@ NavigateThroughPosesNavigator::configure(
   bt_action_server_->setGrootMonitoring(
       node->get_parameter(getName() + ".enable_groot_monitoring").as_bool(),
       node->get_parameter(getName() + ".groot_server_port").as_int());
+  self_client_ = rclcpp_action::create_client<ActionT>(node, getName());
+
+  goal_sub_ = node->create_subscription<geometry_msgs::msg::PoseStamped>(
+    "goal_poses",
+    rclcpp::SystemDefaultsQoS(),
+    std::bind(&NavigateThroughPosesNavigator::onGoalPoseReceived, this, std::placeholders::_1));
 
   return true;
 }
@@ -96,6 +103,16 @@ NavigateThroughPosesNavigator::goalReceived(ActionT::Goal::ConstSharedPtr goal)
   if (!bt_action_server_->loadBehaviorTree(bt_xml_filename)) {
     bt_action_server_->setInternalError(ActionT::Result::FAILED_TO_LOAD_BEHAVIOR_TREE,
       "Error loading XML file: " + bt_xml_filename + ". Navigation canceled.");
+    return false;
+  }
+
+  // Check that not both goal->poses and goal->waypoint_statuses are set
+  if (!goal->poses.goals.empty() &&
+    !goal->waypoint_statuses.empty())
+  {
+    bt_action_server_->setInternalError(
+      ActionT::Result::UNKNOWN,
+      "Goal contains both poses and waypoint statuses, only one of them should be set.");
     return false;
   }
 
@@ -140,85 +157,94 @@ NavigateThroughPosesNavigator::goalCompleted(
 void
 NavigateThroughPosesNavigator::onLoop()
 {
-  using namespace nav2_util::geometry_utils;  // NOLINT
+  if (clock_->now() - last_feedback_time_ > rclcpp::Duration::from_seconds(0.2)) {
+    using namespace nav2_util::geometry_utils;  // NOLINT
 
-  // action server feedback (pose, duration of task,
-  // number of recoveries, and distance remaining to goal, etc)
-  auto feedback_msg = std::make_shared<ActionT::Feedback>();
+    // action server feedback (pose, duration of task,
+    // number of recoveries, and distance remaining to goal, etc)
+    auto feedback_msg = std::make_shared<ActionT::Feedback>();
 
-  auto blackboard = bt_action_server_->getBlackboard();
+    auto blackboard = bt_action_server_->getBlackboard();
 
-  nav_msgs::msg::Goals goal_poses;
-  [[maybe_unused]] auto res = blackboard->get(goals_blackboard_id_, goal_poses);
+    nav_msgs::msg::Goals goal_poses;
+    [[maybe_unused]] auto res = blackboard->get(goals_blackboard_id_, goal_poses);
 
-  feedback_msg->waypoint_statuses =
-    blackboard->get<std::vector<nav2_msgs::msg::WaypointStatus>>(waypoint_statuses_blackboard_id_);
+    auto waypoint_statuses = blackboard->get<std::vector<nav2_msgs::msg::WaypointStatus>>(
+      waypoint_statuses_blackboard_id_);
+    std::vector<uint8_t> waypoint_status_array;
+    waypoint_status_array.reserve(waypoint_statuses.size());
+    for (const auto & status : waypoint_statuses) {
+      waypoint_status_array.push_back(static_cast<uint8_t>(status.waypoint_status));
+    }
+    feedback_msg->waypoint_statuses = waypoint_status_array;
 
-  if (goal_poses.goals.size() == 0) {
-    bt_action_server_->publishFeedback(feedback_msg);
-    return;
-  }
-
-  geometry_msgs::msg::PoseStamped current_pose;
-  if (!nav2_util::getCurrentPose(
-      current_pose, *feedback_utils_.tf,
-      feedback_utils_.global_frame, feedback_utils_.robot_frame,
-      feedback_utils_.transform_tolerance))
-  {
-    RCLCPP_ERROR(logger_, "Robot pose is not available.");
-    return;
-  }
-
-  // Get current path points
-  nav_msgs::msg::Path current_path;
-  res = blackboard->get(path_blackboard_id_, current_path);
-  if (res && current_path.poses.size() > 0u) {
-    // Find the closest pose to current pose on global path
-    auto find_closest_pose_idx =
-      [&current_pose, &current_path]() {
-        size_t closest_pose_idx = 0;
-        double curr_min_dist = std::numeric_limits<double>::max();
-        for (size_t curr_idx = 0; curr_idx < current_path.poses.size(); ++curr_idx) {
-          double curr_dist = nav2_util::geometry_utils::euclidean_distance(
-            current_pose, current_path.poses[curr_idx]);
-          if (curr_dist < curr_min_dist) {
-            curr_min_dist = curr_dist;
-            closest_pose_idx = curr_idx;
-          }
-        }
-        return closest_pose_idx;
-      };
-
-    // Calculate distance on the path
-    double distance_remaining =
-      nav2_util::geometry_utils::calculate_path_length(current_path, find_closest_pose_idx());
-
-    // Default value for time remaining
-    rclcpp::Duration estimated_time_remaining = rclcpp::Duration::from_seconds(0.0);
-
-    // Get current speed
-    geometry_msgs::msg::Twist current_odom = odom_smoother_->getTwist();
-    double current_linear_speed = std::hypot(current_odom.linear.x, current_odom.linear.y);
-
-    // Calculate estimated time taken to goal if speed is higher than 1cm/s
-    // and at least 10cm to go
-    if ((std::abs(current_linear_speed) > 0.01) && (distance_remaining > 0.1)) {
-      estimated_time_remaining =
-        rclcpp::Duration::from_seconds(distance_remaining / std::abs(current_linear_speed));
+    if (goal_poses.goals.size() == 0) {
+      bt_action_server_->publishFeedback(feedback_msg);
+      return;
     }
 
-    feedback_msg->distance_remaining = distance_remaining;
-    feedback_msg->estimated_time_remaining = estimated_time_remaining;
+    geometry_msgs::msg::PoseStamped current_pose;
+    if (!nav2_util::getCurrentPose(
+        current_pose, *feedback_utils_.tf,
+        feedback_utils_.global_frame, feedback_utils_.robot_frame,
+        feedback_utils_.transform_tolerance))
+    {
+      RCLCPP_ERROR(logger_, "Robot pose is not available.");
+      return;
+    }
+
+    // // Get current path points
+    // nav_msgs::msg::Path current_path;
+    // res = blackboard->get(path_blackboard_id_, current_path);
+    // if (res && current_path.poses.size() > 0u) {
+    //   // Find the closest pose to current pose on global path
+    //   auto find_closest_pose_idx =
+    //     [&current_pose, &current_path]() {
+    //       size_t closest_pose_idx = 0;
+    //       double curr_min_dist = std::numeric_limits<double>::max();
+    //       for (size_t curr_idx = 0; curr_idx < current_path.poses.size(); ++curr_idx) {
+    //         double curr_dist = nav2_util::geometry_utils::euclidean_distance(
+    //           current_pose, current_path.poses[curr_idx]);
+    //         if (curr_dist < curr_min_dist) {
+    //           curr_min_dist = curr_dist;
+    //           closest_pose_idx = curr_idx;
+    //         }
+    //       }
+    //       return closest_pose_idx;
+    //     };
+
+      // // Calculate distance on the path
+      // double distance_remaining =
+      //   nav2_util::geometry_utils::calculate_path_length(current_path, find_closest_pose_idx());
+
+      // // Default value for time remaining
+      // rclcpp::Duration estimated_time_remaining = rclcpp::Duration::from_seconds(0.0);
+
+      // // Get current speed
+      // geometry_msgs::msg::Twist current_odom = odom_smoother_->getTwist();
+      // double current_linear_speed = std::hypot(current_odom.linear.x, current_odom.linear.y);
+
+      // // Calculate estimated time taken to goal if speed is higher than 1cm/s
+      // // and at least 10cm to go
+      // if ((std::abs(current_linear_speed) > 0.01) && (distance_remaining > 0.1)) {
+      //   estimated_time_remaining =
+      //     rclcpp::Duration::from_seconds(distance_remaining / std::abs(current_linear_speed));
+      // }
+
+      // feedback_msg->distance_remaining = distance_remaining;
+      // feedback_msg->estimated_time_remaining = estimated_time_remaining;
+    // }
+
+    // int recovery_count = 0;
+    // res = blackboard->get("number_recoveries", recovery_count);
+    // feedback_msg->number_of_recoveries = recovery_count;
+    feedback_msg->current_pose = current_pose;
+    // feedback_msg->navigation_time = clock_->now() - start_time_;
+    // feedback_msg->number_of_poses_remaining = goal_poses.goals.size();
+
+    bt_action_server_->publishFeedback(feedback_msg);
+    last_feedback_time_ = clock_->now();
   }
-
-  int recovery_count = 0;
-  res = blackboard->get("number_recoveries", recovery_count);
-  feedback_msg->number_of_recoveries = recovery_count;
-  feedback_msg->current_pose = current_pose;
-  feedback_msg->navigation_time = clock_->now() - start_time_;
-  feedback_msg->number_of_poses_remaining = goal_poses.goals.size();
-
-  bt_action_server_->publishFeedback(feedback_msg);
 }
 
 void
@@ -266,16 +292,28 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
     return false;
   }
 
-  nav_msgs::msg::Goals goals_array = goal->poses;
+  std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses = goal->waypoint_statuses;
+
+  if (waypoint_statuses.empty())
+  {
+    for (int i = 0; i < static_cast<int>(goal->poses.goals.size()); ++i) {
+      nav2_msgs::msg::WaypointStatus waypoint_status;
+      waypoint_status.waypoint_index = i;
+      waypoint_status.waypoint_pose = goal->poses.goals[i];
+      waypoint_status.waypoint_status =
+        nav2_msgs::msg::WaypointStatus::PENDING;
+      waypoint_statuses.push_back(waypoint_status);
+    }
+  }
   int i = 0;
-  for (auto & goal_pose : goals_array.goals) {
+  for (auto & goal_pose : waypoint_statuses) {
     if (!nav2_util::transformPoseInTargetFrame(
-        goal_pose, goal_pose, *feedback_utils_.tf, feedback_utils_.global_frame,
+        goal_pose.waypoint_pose, goal_pose.waypoint_pose, *feedback_utils_.tf, feedback_utils_.global_frame,
         feedback_utils_.transform_tolerance))
     {
       bt_action_server_->setInternalError(ActionT::Result::TF_ERROR,
         "Failed to transform a goal pose (" + std::to_string(i) + ") provided with frame_id '" +
-        goal_pose.header.frame_id +
+        goal_pose.waypoint_pose.header.frame_id +
         "' to the global frame '" +
         feedback_utils_.global_frame +
         "'.");
@@ -284,32 +322,42 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
     i++;
   }
 
-  if (goals_array.goals.size() > 0) {
-    RCLCPP_INFO(
-      logger_, "Begin navigating from current location through %zu poses to (%.2f, %.2f)",
-      goals_array.goals.size(), goals_array.goals.back().pose.position.x,
-        goals_array.goals.back().pose.position.y);
-  }
+  RCLCPP_INFO(
+    logger_, "Begin navigating from current location through %zu poses to (%.2f, %.2f)",
+    waypoint_statuses.size(), waypoint_statuses.back().waypoint_pose.pose.position.x,
+    waypoint_statuses.back().waypoint_pose.pose.position.y);
+  
 
   // Reset state for new action feedback
   start_time_ = clock_->now();
   auto blackboard = bt_action_server_->getBlackboard();
   blackboard->set("number_recoveries", 0);  // NOLINT
 
+
+  nav_msgs::msg::Goals goals_array;
+
+  // iterate through the waypoint statuses and add the poses to the goals array but keep only the PENDING ones
+  for (const auto & waypoint_status : waypoint_statuses) {
+    if (waypoint_status.waypoint_status == nav2_msgs::msg::WaypointStatus::PENDING) {
+      goals_array.goals.push_back(waypoint_status.waypoint_pose);
+    }
+  }
+
   // Update the goal pose on the blackboard
   blackboard->set<nav_msgs::msg::Goals>(goals_blackboard_id_,
       std::move(goals_array));
-
-  // Reset the waypoint states vector in the blackboard
-  std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses(goals_array.goals.size());
-  for (size_t waypoint_index = 0 ; waypoint_index < goals_array.goals.size() ; ++waypoint_index) {
-    waypoint_statuses[waypoint_index].waypoint_index = waypoint_index;
-    waypoint_statuses[waypoint_index].waypoint_pose = goals_array.goals[waypoint_index];
-  }
   blackboard->set<decltype(waypoint_statuses)>(waypoint_statuses_blackboard_id_,
-      std::move(waypoint_statuses));
+      waypoint_statuses);
 
   return true;
+}
+
+void
+NavigateThroughPosesNavigator::onGoalPoseReceived(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
+{
+  ActionT::Goal goal;
+  goal.poses.goals.push_back(*pose);
+  self_client_->async_send_goal(goal);
 }
 
 }  // namespace nav2_bt_navigator

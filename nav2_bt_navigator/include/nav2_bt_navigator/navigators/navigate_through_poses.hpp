@@ -69,6 +69,12 @@ public:
    */
   std::string getDefaultBTFilepath(rclcpp_lifecycle::LifecycleNode::WeakPtr node) override;
 
+  /**
+   * @brief A subscription and callback to handle the topic-based pose
+   * @param pose Pose received via a topic
+   */
+  void onGoalPoseReceived(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
+
 protected:
   /**
    * @brief A callback to be called when a new goal is received by the BT action server
@@ -107,7 +113,11 @@ protected:
    */
   bool initializeGoalPoses(ActionT::Goal::ConstSharedPtr goal);
 
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
+  rclcpp_action::Client<ActionT>::SharedPtr self_client_;
+
   rclcpp::Time start_time_;
+  rclcpp::Time last_feedback_time_;
   std::string goals_blackboard_id_;
   std::string path_blackboard_id_;
   std::string waypoint_statuses_blackboard_id_;

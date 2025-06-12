@@ -17,6 +17,8 @@ find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(nav2_util REQUIRED)
+find_package(angles REQUIRED)
 
 nav2_package()
 
@@ -248,6 +250,7 @@ foreach(bt_plugin ${plugin_libs})
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
   target_link_libraries(${bt_plugin} PUBLIC
+    angles::angles
     behaviortree_cpp::behaviortree_cpp
     ${geometry_msgs_TARGETS}
     ${nav_msgs_TARGETS}
@@ -261,6 +264,7 @@ foreach(bt_plugin ${plugin_libs})
     tf2_ros::tf2_ros
     ${std_msgs_TARGETS}
     ${std_srvs_TARGETS}
+    
   )
   target_compile_definitions(${bt_plugin} PRIVATE BT_PLUGIN_EXPORT)
 endforeach()

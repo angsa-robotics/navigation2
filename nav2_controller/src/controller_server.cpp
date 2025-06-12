@@ -476,7 +476,7 @@ void ControllerServer::computeControl()
         if (controllers_[current_controller_]->cancel()) {
           RCLCPP_INFO(get_logger(), "Cancellation was successful. Stopping the robot.");
           action_server_->terminate_all();
-          onGoalExit();
+          publishHardStopVelocity();
           return;
         } else {
           RCLCPP_INFO_THROTTLE(
@@ -780,6 +780,26 @@ void ControllerServer::onGoalExit()
   if (publish_zero_velocity_) {
     publishZeroVelocity();
   }
+
+  // Reset the state of the controllers after the task has ended
+  ControllerMap::iterator it;
+  for (it = controllers_.begin(); it != controllers_.end(); ++it) {
+    it->second->reset();
+  }
+}
+
+void ControllerServer::publishHardStopVelocity()
+{
+  geometry_msgs::msg::TwistStamped velocity;
+  velocity.twist.angular.x = -1; // signal for velocity_smoother to immediately stop
+  velocity.twist.angular.y = 0;
+  velocity.twist.angular.z = 0;
+  velocity.twist.linear.x = 0;
+  velocity.twist.linear.y = 0;
+  velocity.twist.linear.z = 0;
+  velocity.header.frame_id = costmap_ros_->getBaseFrameID();
+  velocity.header.stamp = now();
+  publishVelocity(velocity);
 
   // Reset the state of the controllers after the task has ended
   ControllerMap::iterator it;

@@ -385,8 +385,13 @@ bool CollisionMonitor::configureSources(
           node, source_name, tf_buffer_, base_frame_id, odom_frame_id,
           transform_tolerance, source_timeout, base_shift_correction);
         ps->configure();
-
         sources_.push_back(ps);
+      } else if (source_type == "occupancy_grid") {
+        std::shared_ptr<OccupancyGridSource> ogs = std::make_shared<OccupancyGridSource>(
+          node, source_name, tf_buffer_, base_frame_id, odom_frame_id,
+          transform_tolerance, source_timeout, base_shift_correction);
+        ogs->configure();
+        sources_.push_back(ogs);
       } else {  // Error if something else
         RCLCPP_ERROR(
           get_logger(),
@@ -548,13 +553,17 @@ bool CollisionMonitor::processStopSlowdownLimit(
       const double linear_vel = std::hypot(velocity.x, velocity.y);  // absolute
       Velocity safe_vel;
       double ratio = 1.0;
+
+      // Calculate the most restrictive ratio to preserve curvature
       if (linear_vel != 0.0) {
-        ratio = std::clamp(polygon->getLinearLimit() / linear_vel, 0.0, 1.0);
+        ratio = std::min(ratio, polygon->getLinearLimit() / linear_vel);
       }
-      safe_vel.x = velocity.x * ratio;
-      safe_vel.y = velocity.y * ratio;
-      safe_vel.tw = std::clamp(
-        velocity.tw, -polygon->getAngularLimit(), polygon->getAngularLimit());
+      if (velocity.tw != 0.0) {
+        ratio = std::min(ratio, polygon->getAngularLimit() / std::abs(velocity.tw));
+      }
+      ratio = std::clamp(ratio, 0.0, 1.0);
+      // Apply the same ratio to all components to preserve curvature
+      safe_vel = velocity * ratio;
       // Check that currently calculated velocity is safer than
       // chosen for previous shapes one
       if (safe_vel < robot_action.req_vel) {
@@ -579,11 +588,22 @@ bool CollisionMonitor::processApproach(
     return false;
   }
 
-  // Obtain time before a collision
-  const double collision_time = polygon->getCollisionTime(sources_collision_points_map, velocity);
-  if (collision_time >= 0.0) {
-    // If collision will occur, reduce robot speed
-    const double change_ratio = collision_time / polygon->getTimeBeforeCollision();
+  // Obtain collision information
+  const CollisionInfo collision_info = polygon->getCollisionTime(sources_collision_points_map, velocity);
+  if (collision_info.time >= 0.0) {
+    double change_ratio = 1.0;
+    double min_collision_distance = polygon->getMinCollisionDistance();
+    if (collision_info.distance < min_collision_distance) {
+      change_ratio = 0.0;
+      RCLCPP_WARN_THROTTLE(
+        get_logger(), *get_clock(), 1000, "Collision distance (%f) is less than minimum (%f). "
+        "Setting change ratio to 0.0",
+        collision_info.distance, min_collision_distance);
+    } else {
+      // If collision will occur, determine safety factor
+      change_ratio = collision_info.time / polygon->getTimeBeforeCollision();
+    }
+    
     const Velocity safe_vel = velocity * change_ratio;
     // Check that currently calculated velocity is safer than
     // chosen for previous shapes one
