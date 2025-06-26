@@ -13,17 +13,15 @@
 // limitations under the License.
 
 #include "nav2_rviz_plugins/costmap_cost_tool.hpp"
-#include <rviz_common/viewport_mouse_event.hpp>
 #include "rviz_common/display_context.hpp"
 #include "rviz_common/load_resource.hpp"
-#include "rviz_common/interaction/view_picker_iface.hpp"
-#include "rviz_common/msg_conversions.hpp"
 #include "rviz_common/properties/bool_property.hpp"
+#include "tf2/LinearMath/Quaternion.h"
 
 namespace nav2_rviz_plugins
 {
 CostmapCostTool::CostmapCostTool()
-: qos_profile_(5)
+: rviz_default_plugins::tools::PoseTool(), qos_profile_(5)
 {
   shortcut_key_ = 'm';
 
@@ -37,9 +35,7 @@ CostmapCostTool::~CostmapCostTool() {}
 
 void CostmapCostTool::onInitialize()
 {
-  hit_cursor_ = cursor_;
-  std_cursor_ = rviz_common::getDefaultCursor();
-
+  PoseTool::onInitialize();
   setName("Costmap Cost");
   setIcon(rviz_common::loadPixmap("package://rviz_default_plugins/icons/classes/PointStamped.png"));
 
@@ -67,37 +63,12 @@ void CostmapCostTool::onInitialize()
 void CostmapCostTool::activate() {}
 void CostmapCostTool::deactivate() {}
 
-int CostmapCostTool::processMouseEvent(rviz_common::ViewportMouseEvent & event)
+void CostmapCostTool::onPoseSet(double x, double y, double theta)
 {
-  int flags = 0;
-
-  Ogre::Vector3 position;
-  bool success = context_->getViewPicker()->get3DPoint(event.panel, event.x, event.y, position);
-  setCursor(success ? hit_cursor_ : std_cursor_);
-
-  if (success) {
-    std::ostringstream s;
-    s << "<b>Left-Click:</b> Select this point.";
-    s.precision(3);
-    s << " [" << position.x << "," << position.y << "," << position.z << "]";
-    setStatus(s.str().c_str());
-
-    if (event.leftUp()) {
-      auto point = rviz_common::pointOgreToMsg(position);
-
-      callCostService(point.x, point.y);
-
-      if (auto_deactivate_property_->getBool()) {
-        flags |= Finished;
-      }
-    }
-  } else {
-    setStatus("Move over an object to select the target point.");
-  }
-  return flags;
+  callCostService(static_cast<float>(x), static_cast<float>(y), static_cast<float>(theta));
 }
 
-void CostmapCostTool::callCostService(float x, float y)
+void CostmapCostTool::callCostService(float x, float y, float theta)
 {
   rclcpp::Node::SharedPtr node = node_ptr_->get_raw_node();
   // Create request for local costmap
@@ -107,8 +78,18 @@ void CostmapCostTool::callCostService(float x, float y)
   pose.header.stamp = node->now();
   pose.pose.position.x = x;
   pose.pose.position.y = y;
+  pose.pose.position.z = 0.0;
+  
+  // Set orientation from theta (yaw)
+  tf2::Quaternion quat;
+  quat.setRPY(0, 0, theta);
+  pose.pose.orientation.x = quat.x();
+  pose.pose.orientation.y = quat.y();
+  pose.pose.orientation.z = quat.z();
+  pose.pose.orientation.w = quat.w();
+  
   request->poses.push_back(pose);
-  request->use_footprint = false;
+  request->use_footprint = true;  // Use footprint to consider orientation
 
   // Call local costmap service
   if (local_cost_client_->wait_for_service(std::chrono::seconds(1))) {
@@ -130,7 +111,7 @@ void CostmapCostTool::handleLocalCostResponse(
 {
   rclcpp::Node::SharedPtr node = node_ptr_->get_raw_node();
   auto response = future.get();
-  RCLCPP_INFO(node->get_logger(), "Local costmap cost: %.1f", response->costs[0]);
+  RCLCPP_INFO(node->get_logger(), "Local costmap cost (with footprint): %.1f", response->costs[0]);
 }
 
 void CostmapCostTool::handleGlobalCostResponse(
@@ -138,7 +119,7 @@ void CostmapCostTool::handleGlobalCostResponse(
 {
   rclcpp::Node::SharedPtr node = node_ptr_->get_raw_node();
   auto response = future.get();
-  RCLCPP_INFO(node->get_logger(), "Global costmap cost: %.1f", response->costs[0]);
+  RCLCPP_INFO(node->get_logger(), "Global costmap cost (with footprint): %.1f", response->costs[0]);
 }
 }  // namespace nav2_rviz_plugins
 

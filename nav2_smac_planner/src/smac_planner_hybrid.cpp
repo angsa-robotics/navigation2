@@ -525,6 +525,12 @@ nav_msgs::msg::Path SmacPlannerHybrid::createPlan(
           transformFootprintToEdges(plan.poses[i].pose, _costmap_ros->getRobotFootprint());
         marker_array->markers.push_back(createMarker(edge, i, _global_frame, now));
       }
+      // Keep only the last marker
+      if (!marker_array->markers.empty()) {
+        auto last_marker = marker_array->markers.back();
+        marker_array->markers.clear();
+        marker_array->markers.push_back(last_marker);
+      }
       _planned_footprints_publisher->publish(std::move(marker_array));
     }
   }
@@ -567,6 +573,11 @@ nav_msgs::msg::Path SmacPlannerHybrid::createPlan(
         const std::vector<geometry_msgs::msg::Point> edge =
           transformFootprintToEdges(plan.poses[i].pose, _costmap_ros->getRobotFootprint());
         marker_array->markers.push_back(createMarker(edge, i, _global_frame, now));
+      }
+      if (!marker_array->markers.empty()) {
+        auto last_marker = marker_array->markers.back();
+        marker_array->markers.clear();
+        marker_array->markers.push_back(last_marker);
       }
       _smoothed_footprints_publisher->publish(std::move(marker_array));
     }

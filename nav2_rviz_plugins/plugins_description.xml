@@ -27,7 +27,7 @@
   <class name="nav2_rviz_plugins/CostmapCostTool"
          type="nav2_rviz_plugins::CostmapCostTool"
          base_class_type="rviz_common::Tool">
-    <description>A Nav2 tool for getting the cost of point in costmap.</description>
+    <description>A Nav2 tool for getting the cost of a pose (including orientation) in costmap using robot footprint.</description>
   </class>
 
   <class name="nav2_rviz_plugins/ParticleCloud"

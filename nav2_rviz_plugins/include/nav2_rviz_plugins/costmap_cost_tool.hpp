@@ -19,15 +19,15 @@
 
 #include <nav2_msgs/srv/get_costs.hpp>
 #include <rviz_common/ros_integration/ros_node_abstraction_iface.hpp>
-#include <rviz_common/tool.hpp>
 #include <rviz_common/properties/bool_property.hpp>
 #include <rviz_common/properties/qos_profile_property.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include "nav2_util/service_client.hpp"
+#include "rviz_default_plugins/tools/pose/pose_tool.hpp"
 
 namespace nav2_rviz_plugins
 {
-class CostmapCostTool : public rviz_common::Tool
+class CostmapCostTool : public rviz_default_plugins::tools::PoseTool
 {
   Q_OBJECT
 
@@ -39,12 +39,13 @@ public:
   void activate() override;
   void deactivate() override;
 
-  int processMouseEvent(rviz_common::ViewportMouseEvent & event) override;
-
-  void callCostService(float x, float y);
+  void callCostService(float x, float y, float theta);
 
   void handleLocalCostResponse(rclcpp::Client<nav2_msgs::srv::GetCosts>::SharedFuture);
   void handleGlobalCostResponse(rclcpp::Client<nav2_msgs::srv::GetCosts>::SharedFuture);
+
+protected:
+  void onPoseSet(double x, double y, double theta) override;
 
 private Q_SLOTS:
 
@@ -54,8 +55,6 @@ private:
   // The Node pointer that we need to keep alive for the duration of this plugin.
   std::shared_ptr<rviz_common::ros_integration::RosNodeAbstractionIface> node_ptr_;
 
-  QCursor std_cursor_;
-  QCursor hit_cursor_;
   rviz_common::properties::BoolProperty * auto_deactivate_property_;
   rviz_common::properties::QosProfileProperty * qos_profile_property_;
 
