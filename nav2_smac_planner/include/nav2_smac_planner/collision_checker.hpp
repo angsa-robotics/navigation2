@@ -79,7 +79,7 @@ public:
   bool inCollision(
     const float & x,
     const float & y,
-    const float & theta,
+    const float & angle_bin,
     const bool & traverse_unknown);
 
   /**
@@ -91,6 +91,28 @@ public:
   bool inCollision(
     const unsigned int & i,
     const bool & traverse_unknown);
+
+  /**
+   * @brief Check if in collision including interpolated path between current and neighbor poses
+   * @param current_x X coordinate of current pose
+   * @param current_y Y coordinate of current pose
+   * @param current_theta Angle bin number of current pose (NOT radians)
+   * @param neighbor_x X coordinate of neighbor pose
+   * @param neighbor_y Y coordinate of neighbor pose
+   * @param neighbor_theta Angle bin number of neighbor pose (NOT radians)
+   * @param traverse_unknown Whether or not to traverse in unknown space
+   * @param check_interpolation Whether to check interpolated path between poses
+   * @return boolean if in collision or not.
+   */
+  bool inCollision(
+    const float & current_x,
+    const float & current_y,
+    const float & current_theta,
+    const float & neighbor_x,
+    const float & neighbor_y,
+    const float & neighbor_theta,
+    const bool & traverse_unknown,
+    const bool & check_interpolation);
 
   /**
    * @brief Get cost at footprint pose in costmap
@@ -121,6 +143,41 @@ public:
    * @return boolean if in range or not
    */
   bool outsideRange(const unsigned int & max, const float & value);
+
+private:
+  /**
+   * @brief Check if interpolated path between two poses is in collision
+   * @param current_x X coordinate of current pose
+   * @param current_y Y coordinate of current pose
+   * @param current_theta Angle bin number of current pose
+   * @param neighbor_x X coordinate of neighbor pose
+   * @param neighbor_y Y coordinate of neighbor pose
+   * @param neighbor_theta Angle bin number of neighbor pose
+   * @param traverse_unknown Whether or not to traverse in unknown space
+   * @return boolean if interpolated path is in collision
+   */
+  bool isInterpolatedPathInCollision(
+    const float & current_x,
+    const float & current_y,
+    const float & current_theta,
+    const float & neighbor_x,
+    const float & neighbor_y,
+    const float & neighbor_theta,
+    const bool & traverse_unknown);
+
+  /**
+   * @brief Check if interpolation checking should be triggered for a pose
+   * @param x X coordinate of pose
+   * @param y Y coordinate of pose
+   * @param angle_bin Angle bin number of pose
+   * @param traverse_unknown Whether or not to traverse in unknown space
+   * @return boolean if interpolation checking should be performed
+   */
+  bool shouldCheckInterpolation(
+    const float & x,
+    const float & y,
+    const float & angle_bin,
+    const bool & traverse_unknown);
 
 protected:
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;

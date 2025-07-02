@@ -173,12 +173,113 @@ bool GridCollisionChecker::inCollision(
   const bool & traverse_unknown)
 {
   center_cost_ = costmap_->getCost(i);
+  
   if (center_cost_ == UNKNOWN_COST && traverse_unknown) {
     return false;
   }
 
   // if occupied or unknown and not to traverse unknown space
   return center_cost_ >= INSCRIBED_COST;
+}
+
+bool GridCollisionChecker::inCollision(
+  const float & current_x,
+  const float & current_y,
+  const float & current_theta,
+  const float & neighbor_x,
+  const float & neighbor_y,
+  const float & neighbor_theta,
+  const bool & traverse_unknown,
+  const bool & check_interpolation)
+{
+  // First check if the neighbor pose itself is in collision
+  bool neighbor_in_collision = inCollision(neighbor_x, neighbor_y, neighbor_theta, traverse_unknown);
+  
+  if (neighbor_in_collision) {
+    return true;
+  }
+  
+  // Check if interpolation checking should be triggered by directly checking the footprint cost
+  if (check_interpolation && shouldCheckInterpolation(neighbor_x, neighbor_y, neighbor_theta, traverse_unknown)) {
+    return isInterpolatedPathInCollision(
+      current_x, current_y, current_theta,
+      neighbor_x, neighbor_y, neighbor_theta,
+      traverse_unknown);
+  }
+  
+  return false;
+}
+
+bool GridCollisionChecker::shouldCheckInterpolation(
+  const float & x,
+  const float & y,
+  const float & angle_bin,
+  const bool & traverse_unknown)
+{
+  // Check if the footprint at this pose has inscribed cost (253)
+  // This determines if we need to do interpolation checking
+  
+  if (outsideRange(costmap_->getSizeInCellsX(), x) ||
+    outsideRange(costmap_->getSizeInCellsY(), y))
+  {
+    return false;  // Outside map, no need for interpolation
+  }
+
+  if (footprint_is_radius_) {
+    // For radius-based collision checking, use center cost
+    float center_cost = static_cast<float>(costmap_->getCost(
+      static_cast<unsigned int>(x + 0.5f), static_cast<unsigned int>(y + 0.5f)));
+    return center_cost == INSCRIBED_COST;
+  } else {
+    // For footprint-based collision checking, calculate footprint cost
+    double wx, wy;
+    costmap_->mapToWorld(static_cast<double>(x), static_cast<double>(y), wx, wy);
+    geometry_msgs::msg::Point new_pt;
+    const nav2_costmap_2d::Footprint & oriented_footprint = oriented_footprints_[angle_bin];
+    nav2_costmap_2d::Footprint current_footprint;
+    current_footprint.reserve(oriented_footprint.size());
+    for (unsigned int i = 0; i < oriented_footprint.size(); ++i) {
+      new_pt.x = wx + oriented_footprint[i].x;
+      new_pt.y = wy + oriented_footprint[i].y;
+      current_footprint.push_back(new_pt);
+    }
+
+    float footprint_cost = static_cast<float>(footprintAreaCost(current_footprint));
+    return footprint_cost == INSCRIBED_COST;
+  }
+}
+
+bool GridCollisionChecker::isInterpolatedPathInCollision(
+  const float & current_x,
+  const float & current_y,
+  const float & current_theta,
+  const float & neighbor_x,
+  const float & neighbor_y,
+  const float & neighbor_theta,
+  const bool & traverse_unknown)
+{
+  // TODO: Implement actual interpolation checking using OMPL state space
+  // For now, this is a dummy implementation that always returns false (no collision)
+  
+  // Placeholder logic - just check a simple linear interpolation of positions
+  const unsigned int num_steps = 5;
+  
+  for (unsigned int i = 1; i < num_steps; i++) {
+    float t = static_cast<float>(i) / static_cast<float>(num_steps);
+    
+    // Simple linear interpolation (not using OMPL yet)
+    float interp_x = current_x + t * (neighbor_x - current_x);
+    float interp_y = current_y + t * (neighbor_y - current_y);
+    // For now, just use current theta (will implement proper angular interpolation later)
+    float interp_theta = current_theta;
+    
+    // Check collision at interpolated pose
+    if (inCollision(interp_x, interp_y, interp_theta, traverse_unknown)) {
+      return true;  // Collision found in interpolated path
+    }
+  }
+  
+  return false;  // No collision found in interpolated path
 }
 
 float GridCollisionChecker::getCost()

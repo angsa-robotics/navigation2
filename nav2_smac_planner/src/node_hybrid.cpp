@@ -859,7 +859,15 @@ void NodeHybrid::getNeighbors(
           motion_projections[i]._x,
           motion_projections[i]._y,
           motion_projections[i]._theta));
-      if (neighbor->isNodeValid(traverse_unknown, collision_checker)) {
+      
+      // Always use the enhanced collision checker that can handle interpolation
+      bool neighbor_is_valid = !collision_checker->inCollision(
+        this->pose.x, this->pose.y, this->pose.theta,  // current pose
+        neighbor->pose.x, neighbor->pose.y, neighbor->pose.theta,  // neighbor pose
+        traverse_unknown,
+        true);  // enable interpolation checking (will be triggered internally if needed)
+      
+      if (neighbor_is_valid) {
         neighbor->setMotionPrimitiveIndex(i, motion_projections[i]._turn_dir);
         neighbors.push_back(neighbor);
       } else {
