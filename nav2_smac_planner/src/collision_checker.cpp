@@ -120,18 +120,60 @@ bool GridCollisionChecker::inCollision(
     return true;
   }
 
-  if (footprint_is_radius_) {
-    // For radius-based collision checking
-    CollisionResult result = checkCenterPointCollision(x, y, traverse_unknown);
-    center_cost_ = static_cast<float>(result.cost);
-    return result.in_collision;
+  // Assumes setFootprint already set
+  center_cost_ = static_cast<float>(costmap_->getCost(
+    static_cast<unsigned int>(x + 0.5f), static_cast<unsigned int>(y + 0.5f)));
+
+  if (!footprint_is_radius_) {
+    // if footprint, then we check for the footprint's points, but first see
+    // if the robot is even potentially in an inscribed collision
+    if (center_cost_ < possible_collision_cost_ && possible_collision_cost_ > 0.0f) {
+      return false;
+    }
+
+    // If its inscribed, in collision, or unknown in the middle,
+    // no need to even check the footprint, its invalid
+    if (center_cost_ == UNKNOWN_COST && !traverse_unknown) {
+      return true;
+    }
+
+    if (center_cost_ == INSCRIBED_COST || center_cost_ == OCCUPIED_COST) {
+      return true;
+    }
+
+    // Use full area checking instead of edge-only checking
+    double wx, wy;
+    costmap_->mapToWorld(static_cast<double>(x), static_cast<double>(y), wx, wy);
+    geometry_msgs::msg::Point new_pt;
+    const nav2_costmap_2d::Footprint & oriented_footprint = oriented_footprints_[angle_bin];
+    nav2_costmap_2d::Footprint current_footprint;
+    current_footprint.reserve(oriented_footprint.size());
+    for (unsigned int i = 0; i < oriented_footprint.size(); ++i) {
+      new_pt.x = wx + oriented_footprint[i].x;
+      new_pt.y = wy + oriented_footprint[i].y;
+      current_footprint.push_back(new_pt);
+    }
+
+    // Check footprint cost
+    float footprint_cost = static_cast<float>(footprintCost(current_footprint));
+
+    if (footprint_cost == UNKNOWN_COST && traverse_unknown) {
+      return false;
+    }
+
+    // if occupied or unknown and not to traverse unknown space
+    return footprint_cost >= OCCUPIED_COST;
   } else {
-    // For footprint-based collision checking
-    CollisionResult result = checkFootprintCollision(x, y, angle_bin, traverse_unknown);
-    center_cost_ = static_cast<float>(result.cost);
-    return result.in_collision;
+    // if radius, then we can check the center of the cost assuming inflation is used
+    if (center_cost_ == UNKNOWN_COST && traverse_unknown) {
+      return false;
+    }
+
+    // if occupied or unknown and not to traverse unknown space
+    return center_cost_ >= INSCRIBED_COST;
   }
 }
+
 
 bool GridCollisionChecker::inCollision(
   const unsigned int & i,
@@ -154,105 +196,83 @@ bool GridCollisionChecker::inCollision(
     return false;
   }
 
-  // For radius mode, use simple center point checking
-  if (footprint_is_radius_) {
-    for (const auto& pose : path) {
-      unsigned int mx, my;
-      if (!costmap_->worldToMap(pose.pose.position.x, pose.pose.position.y, mx, my)) {
-        return true; // Outside map bounds = collision
-      }
-
-      CollisionResult result = checkCenterPointCollision(
-        static_cast<float>(mx), static_cast<float>(my), traverse_unknown);
-      
-      if (result.in_collision) {
-        return true;
-      }
+  for (const auto& pose : path) {
+    auto theta = tf2::getYaw(pose.pose.orientation);
+    bool in_collision = inCollision(
+      static_cast<float>(pose.pose.position.x),
+      static_cast<float>(pose.pose.position.y),
+      static_cast<float>(theta), 
+      traverse_unknown);
+    if (in_collision) {
+      return true; // Early exit if any pose is in collision
     }
+  }
+
+  if (path.size() == 1) {
     return false;
   }
 
-  // For footprint mode, use swept convex hull approximation
-  if (path.size() == 1) {
-    // Single pose - use regular collision checking
-    const auto& pose = path[0];
-    unsigned int mx, my;
-    if (!costmap_->worldToMap(pose.pose.position.x, pose.pose.position.y, mx, my)) {
-      return true; // Outside map bounds = collision
-    }
+  // // Multi-pose path - use swept convex hull approximation between consecutive poses
+  // // Process path segment by segment
+  // for (size_t i = 0; i < path.size() - 1; ++i) {
+  //   const auto& pose1 = path[i];
+  //   const auto& pose2 = path[i + 1];
 
-    double yaw = tf2::getYaw(pose.pose.orientation);
-    while (yaw < 0.0) yaw += 2.0 * M_PI;
-    while (yaw >= 2.0 * M_PI) yaw -= 2.0 * M_PI;
+  //   // Get angle bins for both poses
+  //   double yaw1 = tf2::getYaw(pose1.pose.orientation);
+  //   double yaw2 = tf2::getYaw(pose2.pose.orientation);
     
-    double bin_size = 2.0 * M_PI / static_cast<double>(angles_.size());
-    unsigned int angle_bin = static_cast<unsigned int>(yaw / bin_size) % angles_.size();
+  //   // Normalize angles
+  //   while (yaw1 < 0.0) yaw1 += 2.0 * M_PI;
+  //   while (yaw1 >= 2.0 * M_PI) yaw1 -= 2.0 * M_PI;
+  //   while (yaw2 < 0.0) yaw2 += 2.0 * M_PI;
+  //   while (yaw2 >= 2.0 * M_PI) yaw2 -= 2.0 * M_PI;
     
-    return inCollision(static_cast<float>(mx), static_cast<float>(my), 
-                      static_cast<float>(angle_bin), traverse_unknown);
-  }
+  //   double bin_size = 2.0 * M_PI / static_cast<double>(angles_.size());
+  //   unsigned int angle_bin1 = static_cast<unsigned int>(yaw1 / bin_size) % angles_.size();
+  //   unsigned int angle_bin2 = static_cast<unsigned int>(yaw2 / bin_size) % angles_.size();
 
-  // Multi-pose path - use swept convex hull approximation between consecutive poses
-  // Process path segment by segment
-  for (size_t i = 0; i < path.size() - 1; ++i) {
-    const auto& pose1 = path[i];
-    const auto& pose2 = path[i + 1];
+  //   if (angle_bin1 >= oriented_footprints_.size() || angle_bin2 >= oriented_footprints_.size()) {
+  //     continue; // Skip invalid angle bins
+  //   }
 
-    // Get angle bins for both poses
-    double yaw1 = tf2::getYaw(pose1.pose.orientation);
-    double yaw2 = tf2::getYaw(pose2.pose.orientation);
+  //   // Create swept footprint for this segment by combining both poses
+  //   nav2_costmap_2d::Footprint segment_footprint;
     
-    // Normalize angles
-    while (yaw1 < 0.0) yaw1 += 2.0 * M_PI;
-    while (yaw1 >= 2.0 * M_PI) yaw1 -= 2.0 * M_PI;
-    while (yaw2 < 0.0) yaw2 += 2.0 * M_PI;
-    while (yaw2 >= 2.0 * M_PI) yaw2 -= 2.0 * M_PI;
+  //   // Add footprint points from first pose
+  //   const auto& oriented_footprint1 = oriented_footprints_[angle_bin1];
+  //   for (const auto& point : oriented_footprint1) {
+  //     geometry_msgs::msg::Point world_point;
+  //     world_point.x = pose1.pose.position.x + point.x;
+  //     world_point.y = pose1.pose.position.y + point.y;
+  //     segment_footprint.push_back(world_point);
+  //   }
     
-    double bin_size = 2.0 * M_PI / static_cast<double>(angles_.size());
-    unsigned int angle_bin1 = static_cast<unsigned int>(yaw1 / bin_size) % angles_.size();
-    unsigned int angle_bin2 = static_cast<unsigned int>(yaw2 / bin_size) % angles_.size();
+  //   // Add footprint points from second pose
+  //   const auto& oriented_footprint2 = oriented_footprints_[angle_bin2];
+  //   for (const auto& point : oriented_footprint2) {
+  //     geometry_msgs::msg::Point world_point;
+  //     world_point.x = pose2.pose.position.x + point.x;
+  //     world_point.y = pose2.pose.position.y + point.y;
+  //     segment_footprint.push_back(world_point);
+  //   }
 
-    if (angle_bin1 >= oriented_footprints_.size() || angle_bin2 >= oriented_footprints_.size()) {
-      continue; // Skip invalid angle bins
-    }
-
-    // Create swept footprint for this segment by combining both poses
-    nav2_costmap_2d::Footprint segment_footprint;
+  //   // Compute convex hull of this segment
+  //   std::vector<geometry_msgs::msg::Point> segment_hull = computeConvexHull(segment_footprint);
     
-    // Add footprint points from first pose
-    const auto& oriented_footprint1 = oriented_footprints_[angle_bin1];
-    for (const auto& point : oriented_footprint1) {
-      geometry_msgs::msg::Point world_point;
-      world_point.x = pose1.pose.position.x + point.x;
-      world_point.y = pose1.pose.position.y + point.y;
-      segment_footprint.push_back(world_point);
-    }
-    
-    // Add footprint points from second pose
-    const auto& oriented_footprint2 = oriented_footprints_[angle_bin2];
-    for (const auto& point : oriented_footprint2) {
-      geometry_msgs::msg::Point world_point;
-      world_point.x = pose2.pose.position.x + point.x;
-      world_point.y = pose2.pose.position.y + point.y;
-      segment_footprint.push_back(world_point);
-    }
-
-    // Compute convex hull of this segment
-    std::vector<geometry_msgs::msg::Point> segment_hull = computeConvexHull(segment_footprint);
-    
-    if (segment_hull.size() >= 3) {
-      // Use parent class footprintCost for collision checking
-      double segment_cost = footprintCost(segment_hull);
+  //   if (segment_hull.size() >= 3) {
+  //     // Use parent class footprintCost for collision checking
+  //     double segment_cost = footprintCost(segment_hull);
       
-      if (segment_cost == static_cast<double>(UNKNOWN_COST) && !traverse_unknown) {
-        return true; // Unknown area and not allowed to traverse
-      }
+  //     if (segment_cost == static_cast<double>(UNKNOWN_COST) && !traverse_unknown) {
+  //       return true; // Unknown area and not allowed to traverse
+  //     }
       
-      if (segment_cost >= static_cast<double>(OCCUPIED_COST)) {
-        return true; // Collision detected
-      }
-    }
-  }
+  //     if (segment_cost >= static_cast<double>(OCCUPIED_COST)) {
+  //       return true; // Collision detected
+  //     }
+  //   }
+  // }
 
   // If we got here, no collision was detected
   return false;
@@ -269,98 +289,6 @@ bool GridCollisionChecker::outsideRange(const unsigned int & max, const float & 
   return value < 0.0f || value > max;
 }
 
-GridCollisionChecker::CollisionResult GridCollisionChecker::checkCenterPointCollision(
-  const float& x, const float& y, const bool& traverse_unknown) const
-{
-  CollisionResult result;
-  result.needs_full_check = false;
-  
-  // Use parent class pointCost method
-  double cost = pointCost(static_cast<int>(x + 0.5f), static_cast<int>(y + 0.5f));
-  result.cost = cost;
-  
-  // Check for immediate collision conditions
-  if (cost == static_cast<double>(UNKNOWN_COST) && !traverse_unknown) {
-    result.in_collision = true;
-    return result;
-  }
-  if (cost >= static_cast<double>(OCCUPIED_COST)) {
-    result.in_collision = true;
-    return result;
-  }
-  
-  if (footprint_is_radius_) {
-    // For radius mode, inscribed cost means collision
-    result.in_collision = (cost >= static_cast<double>(INSCRIBED_COST));
-  } else {
-    // For footprint mode, check immediate center point collisions
-    if (cost >= static_cast<double>(OCCUPIED_COST)) {
-      result.in_collision = true;
-      return result;
-    }
-    
-    // Check if we need full footprint checking
-    if (cost >= static_cast<double>(possible_collision_cost_) && possible_collision_cost_ > 0.0f) {
-      result.needs_full_check = true;
-    }
-    
-    result.in_collision = false;
-  }
-  
-  return result;
-}
-
-GridCollisionChecker::CollisionResult GridCollisionChecker::checkFootprintCollision(
-  const float& x, const float& y, const float& angle_bin, 
-  const bool& traverse_unknown)
-{
-  CollisionResult result;
-  result.needs_full_check = false;
-  
-  // First check center point for early optimization
-  CollisionResult center_result = checkCenterPointCollision(x, y, traverse_unknown);
-  
-  // If center point indicates we can skip full footprint check
-  if (!center_result.needs_full_check) {
-    return center_result;
-  }
-  
-  // Perform full footprint checking using parent class method
-  double wx, wy;
-  costmap_->mapToWorld(static_cast<double>(x), static_cast<double>(y), wx, wy);
-  
-  if (static_cast<size_t>(angle_bin) >= oriented_footprints_.size()) {
-    // Fallback to center point cost
-    result.cost = center_result.cost;
-    result.in_collision = center_result.in_collision;
-    return result;
-  }
-  
-  // Use parent class footprintCost method
-  const nav2_costmap_2d::Footprint& oriented_footprint = oriented_footprints_[static_cast<size_t>(angle_bin)];
-  nav2_costmap_2d::Footprint current_footprint;
-  current_footprint.reserve(oriented_footprint.size());
-  
-  for (const auto& point : oriented_footprint) {
-    geometry_msgs::msg::Point new_pt;
-    new_pt.x = wx + point.x;
-    new_pt.y = wy + point.y;
-    current_footprint.push_back(new_pt);
-  }
-  
-  // Check full area covered by footprint using parent class method
-  double footprint_cost = footprintCost(current_footprint);
-  result.cost = footprint_cost;
-  
-  if (footprint_cost == static_cast<double>(UNKNOWN_COST) && traverse_unknown) {
-    result.in_collision = false;
-    return result;
-  }
-  
-  // if occupied or unknown and not to traverse unknown space
-  result.in_collision = (footprint_cost >= static_cast<double>(OCCUPIED_COST));
-  return result;
-}
 
 std::vector<geometry_msgs::msg::Point> GridCollisionChecker::computeConvexHull(
   const std::vector<geometry_msgs::msg::Point>& points) const

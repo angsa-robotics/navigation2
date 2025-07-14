@@ -151,24 +151,11 @@ protected:
    */
   struct CollisionResult {
     bool in_collision;
+    bool needs_orientation_check; // Only relevant for footprint mode
+    bool needs_interpolation_check;
     double cost;
-    bool needs_full_check;  // Only relevant for footprint mode
   };
   
-  CollisionResult checkCenterPointCollision(
-    const float& x, const float& y, const bool& traverse_unknown) const;
-
-  /**
-   * @brief Check footprint collision for a single pose
-   * @param x X coordinate (in map cells)
-   * @param y Y coordinate (in map cells) 
-   * @param angle_bin Angle bin index for precomputed footprints
-   * @param traverse_unknown Whether to traverse unknown space
-   * @return CollisionResult containing collision status and cost
-   */
-  CollisionResult checkFootprintCollision(
-    const float& x, const float& y, const float& angle_bin, 
-    const bool& traverse_unknown);
 
   /**
    * @brief Compute convex hull of a set of points using Graham scan

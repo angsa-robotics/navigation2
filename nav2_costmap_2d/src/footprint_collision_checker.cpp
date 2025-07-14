@@ -88,11 +88,6 @@ double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & foot
     return perimeter_cost;
   }
 
-  // // If only checking perimeter, return now
-  // if (!check_full_area) {
-  //   return perimeter_cost;
-  // }
-
   // Check interior area only if perimeter didn't have lethal cost
   // Find bounding box of footprint
   double min_x = std::numeric_limits<double>::max();
