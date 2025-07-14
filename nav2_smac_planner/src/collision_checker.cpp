@@ -244,11 +244,11 @@ bool GridCollisionChecker::inCollision(
       // Use parent class footprintCost for collision checking
       double segment_cost = footprintCost(segment_hull);
       
-      if (segment_cost == static_cast<double>(nav2_costmap_2d::UNKNOWN_COST) && !traverse_unknown) {
+      if (segment_cost == static_cast<double>(UNKNOWN_COST) && !traverse_unknown) {
         return true; // Unknown area and not allowed to traverse
       }
       
-      if (segment_cost >= static_cast<double>(nav2_costmap_2d::OCCUPIED_COST)) {
+      if (segment_cost >= static_cast<double>(OCCUPIED_COST)) {
         return true; // Collision detected
       }
     }
@@ -280,22 +280,21 @@ GridCollisionChecker::CollisionResult GridCollisionChecker::checkCenterPointColl
   result.cost = cost;
   
   // Check for immediate collision conditions
-  if (cost == static_cast<double>(nav2_costmap_2d::UNKNOWN_COST) && !traverse_unknown) {
+  if (cost == static_cast<double>(UNKNOWN_COST) && !traverse_unknown) {
     result.in_collision = true;
     return result;
   }
-  
-  if (cost >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) {
+  if (cost >= static_cast<double>(OCCUPIED_COST)) {
     result.in_collision = true;
     return result;
   }
   
   if (footprint_is_radius_) {
     // For radius mode, inscribed cost means collision
-    result.in_collision = (cost >= static_cast<double>(nav2_costmap_2d::INSCRIBED_COST));
+    result.in_collision = (cost >= static_cast<double>(INSCRIBED_COST));
   } else {
     // For footprint mode, check immediate center point collisions
-    if (cost >= static_cast<double>(nav2_costmap_2d::OCCUPIED_COST)) {
+    if (cost >= static_cast<double>(OCCUPIED_COST)) {
       result.in_collision = true;
       return result;
     }
@@ -313,7 +312,7 @@ GridCollisionChecker::CollisionResult GridCollisionChecker::checkCenterPointColl
 
 GridCollisionChecker::CollisionResult GridCollisionChecker::checkFootprintCollision(
   const float& x, const float& y, const float& angle_bin, 
-  const bool& traverse_unknown) const
+  const bool& traverse_unknown)
 {
   CollisionResult result;
   result.needs_full_check = false;
@@ -353,13 +352,13 @@ GridCollisionChecker::CollisionResult GridCollisionChecker::checkFootprintCollis
   double footprint_cost = footprintCost(current_footprint);
   result.cost = footprint_cost;
   
-  if (footprint_cost == static_cast<double>(nav2_costmap_2d::UNKNOWN_COST) && traverse_unknown) {
+  if (footprint_cost == static_cast<double>(UNKNOWN_COST) && traverse_unknown) {
     result.in_collision = false;
     return result;
   }
   
   // if occupied or unknown and not to traverse unknown space
-  result.in_collision = (footprint_cost >= static_cast<double>(nav2_costmap_2d::OCCUPIED_COST));
+  result.in_collision = (footprint_cost >= static_cast<double>(OCCUPIED_COST));
   return result;
 }
 

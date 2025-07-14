@@ -168,7 +168,7 @@ protected:
    */
   CollisionResult checkFootprintCollision(
     const float& x, const float& y, const float& angle_bin, 
-    const bool& traverse_unknown) const;
+    const bool& traverse_unknown);
 
   /**
    * @brief Compute convex hull of a set of points using Graham scan

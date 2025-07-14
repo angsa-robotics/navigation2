@@ -45,7 +45,7 @@ FootprintCollisionChecker<CostmapT>::FootprintCollisionChecker(
 }
 
 template<typename CostmapT>
-double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & footprint, bool check_full_area)
+double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & footprint)
 {
   // Check perimeter first (vertices/edges)
   unsigned int x0, x1, y0, y1;
@@ -88,10 +88,10 @@ double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & foot
     return perimeter_cost;
   }
 
-  // If only checking perimeter, return now
-  if (!check_full_area) {
-    return perimeter_cost;
-  }
+  // // If only checking perimeter, return now
+  // if (!check_full_area) {
+  //   return perimeter_cost;
+  // }
 
   // Check interior area only if perimeter didn't have lethal cost
   // Find bounding box of footprint

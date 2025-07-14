@@ -20,6 +20,7 @@
 
 #include "nav2_costmap_2d/footprint_collision_checker.hpp"
 #include "nav2_costmap_2d/inflation_layer.hpp"
+#include "nav2_smac_planner/collision_checker.hpp"
 
 #include "nav2_mppi_controller/critic_function.hpp"
 #include "nav2_mppi_controller/models/state.hpp"
@@ -125,6 +126,7 @@ protected:
 
   nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D *>
   collision_checker_{nullptr};
+  std::unique_ptr<nav2_smac_planner::GridCollisionChecker> smac_collision_checker_;
   float possible_collision_cost_;
 
   bool consider_footprint_{true};

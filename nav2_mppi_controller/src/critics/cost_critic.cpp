@@ -16,6 +16,8 @@
 #include <cmath>
 #include "nav2_mppi_controller/critics/cost_critic.hpp"
 #include "nav2_core/controller_exceptions.hpp"
+#include "tf2/utils.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 namespace mppi::critics
 {
@@ -47,6 +49,12 @@ void CostCritic::initialize()
   parameters_handler_->addParamCallback(name_ + ".cost_weight", weightDynamicCb);
 
   collision_checker_.setCostmap(costmap_);
+  
+  // Initialize SMAC collision checker for path-based collision checking
+  auto node = parent_.lock();
+  smac_collision_checker_ = std::make_unique<nav2_smac_planner::GridCollisionChecker>(
+    costmap_ros_, 360, node);
+  
   possible_collision_cost_ = findCircumscribedCost(costmap_ros_);
 
   if (possible_collision_cost_ < 1.0f) {
@@ -149,6 +157,12 @@ void CostCritic::score(CriticData & data)
   if (consider_footprint_) {
     // footprint may have changed since initialization if user has dynamic footprints
     possible_collision_cost_ = findCircumscribedCost(costmap_ros_);
+    
+    // Update SMAC collision checker with current footprint
+    smac_collision_checker_->setFootprint(
+      costmap_ros_->getRobotFootprint(), 
+      costmap_ros_->getUseRadius(), 
+      possible_collision_cost_);
   }
 
   // If near the goal, don't apply the preferential term since the goal is near obstacles
@@ -177,39 +191,54 @@ void CostCritic::score(CriticData & data)
 
   for (int i = 0; i < strided_traj_rows; ++i) {
     bool trajectory_collide = false;
-    float pose_cost = 0.0f;
     float & traj_cost = repulsive_cost(i);
 
+    // Convert trajectory to path for efficient collision checking
+    std::vector<geometry_msgs::msg::PoseStamped> trajectory_path;
+    trajectory_path.reserve(strided_traj_cols);
+    
     for (int j = 0; j < strided_traj_cols; j++) {
-      float Tx = traj_x(i, j);
-      float Ty = traj_y(i, j);
-      unsigned int x_i = 0u, y_i = 0u;
+      geometry_msgs::msg::PoseStamped pose;
+      pose.pose.position.x = traj_x(i, j);
+      pose.pose.position.y = traj_y(i, j);
+      pose.pose.position.z = 0.0;
+      
+      // Convert yaw to quaternion
+      tf2::Quaternion quat;
+      quat.setRPY(0, 0, traj_yaw(i, j));
+      pose.pose.orientation = tf2::toMsg(quat);
+      
+      trajectory_path.push_back(pose);
+    }
 
-      // The getCost doesn't use orientation
-      // The footprintCostAtPose will always return "INSCRIBED" if footprint is over it
-      // So the center point has more information than the footprint
-      if (!worldToMapFloat(Tx, Ty, x_i, y_i)) {
-        pose_cost = 255.0f;  // NO_INFORMATION in float
-      } else {
-        pose_cost = static_cast<float>(costmap->getCost(getIndex(x_i, y_i)));
-        if (pose_cost < 1.0f) {
-          continue;  // In free space
+    // Use SMAC collision checker for path-based collision checking
+    if (smac_collision_checker_->inCollision(trajectory_path, !is_tracking_unknown_)) {
+      traj_cost = collision_cost_;
+      trajectory_collide = true;
+    } else {
+      // For non-colliding trajectories, still compute cost based on individual poses
+      // to maintain near-collision penalty behavior
+      for (int j = 0; j < strided_traj_cols; j++) {
+        float Tx = traj_x(i, j);
+        float Ty = traj_y(i, j);
+        unsigned int x_i = 0u, y_i = 0u;
+
+        float pose_cost = 0.0f;
+        if (!worldToMapFloat(Tx, Ty, x_i, y_i)) {
+          pose_cost = 255.0f;  // NO_INFORMATION in float
+        } else {
+          pose_cost = static_cast<float>(costmap->getCost(getIndex(x_i, y_i)));
+          if (pose_cost < 1.0f) {
+            continue;  // In free space
+          }
         }
-      }
 
-      if (inCollision(pose_cost, Tx, Ty, traj_yaw(i, j))) {
-        traj_cost = collision_cost_;
-        trajectory_collide = true;
-        break;
-      }
-
-      // Let near-collision trajectory points be punished severely
-      // Note that we collision check based on the footprint actual,
-      // but score based on the center-point cost regardless
-      if (pose_cost >= static_cast<float>(near_collision_cost_)) {
-        traj_cost += critical_cost_;
-      } else if (!near_goal) {  // Generally prefer trajectories further from obstacles
-        traj_cost += pose_cost;
+        // Let near-collision trajectory points be punished severely
+        if (pose_cost >= static_cast<float>(near_collision_cost_)) {
+          traj_cost += critical_cost_;
+        } else if (!near_goal) {  // Generally prefer trajectories further from obstacles
+          traj_cost += pose_cost;
+        }
       }
     }
 

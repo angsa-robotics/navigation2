@@ -17,7 +17,9 @@
   <depend>nav2_common</depend>
   <depend>nav2_core</depend>
   <depend>nav2_costmap_2d</depend>
+  <depend>nav2_smac_planner</depend>
   <depend>nav2_util</depend>
+  <depend>libopencv-dev</depend>
   <depend>nav_msgs</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>

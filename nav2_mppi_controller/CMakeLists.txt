@@ -7,8 +7,10 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_core REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
+find_package(nav2_smac_planner REQUIRED)
 find_package(nav2_util REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
@@ -91,7 +93,9 @@ target_link_libraries(mppi_critics PUBLIC
   nav2_core::nav2_core
   nav2_costmap_2d::layers
   nav2_costmap_2d::nav2_costmap_2d_core
+  nav2_smac_planner::nav2_smac_planner_common
   ${nav_msgs_TARGETS}
+  ${OpenCV_LIBS}
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   ${std_msgs_TARGETS}
