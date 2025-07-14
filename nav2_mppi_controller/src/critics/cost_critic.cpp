@@ -53,7 +53,7 @@ void CostCritic::initialize()
   // Initialize SMAC collision checker for path-based collision checking
   auto node = parent_.lock();
   smac_collision_checker_ = std::make_unique<nav2_smac_planner::GridCollisionChecker>(
-    costmap_ros_, 360, node);
+    costmap_ros_, 72, node);
   
   possible_collision_cost_ = findCircumscribedCost(costmap_ros_);
 
