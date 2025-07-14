@@ -53,10 +53,6 @@ public:
    */
   double footprintCost(const Footprint & footprint);
   /**
-   * @brief Find the footprint cost for entire footprint area using full coverage
-   */
-  double footprintAreaCost(const Footprint & footprint);
-  /**
    * @brief Find the footprint cost a a post with an unoriented footprint
    */
   double footprintCostAtPose(double x, double y, double theta, const Footprint & footprint);

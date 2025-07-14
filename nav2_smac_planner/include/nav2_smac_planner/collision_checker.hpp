@@ -19,6 +19,7 @@
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 #include "nav2_smac_planner/constants.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 
 #ifndef NAV2_SMAC_PLANNER__COLLISION_CHECKER_HPP_
 #define NAV2_SMAC_PLANNER__COLLISION_CHECKER_HPP_
@@ -93,6 +94,16 @@ public:
     const bool & traverse_unknown);
 
   /**
+   * @brief Check if path is in collision with costmap and footprint
+   * @param path Vector of poses representing the path
+   * @param traverse_unknown Whether or not to traverse in unknown space
+   * @return boolean if in collision or not.
+   */
+  bool inCollision(
+    const std::vector<geometry_msgs::msg::PoseStamped>& path,
+    const bool& traverse_unknown = true);
+
+  /**
    * @brief Get cost at footprint pose in costmap
    * @return the cost at the pose in costmap
    */
@@ -123,6 +134,50 @@ public:
   bool outsideRange(const unsigned int & max, const float & value);
 
 protected:
+  /**
+   * @brief Check if coordinates are within map bounds
+   * @param x X coordinate (in map cells)
+   * @param y Y coordinate (in map cells)
+   * @return true if coordinates are within bounds
+   */
+  bool withinMapBounds(const float& x, const float& y) const;
+
+  /**
+   * @brief Check center point collision for a single pose
+   * @param x X coordinate (in map cells)
+   * @param y Y coordinate (in map cells)
+   * @param traverse_unknown Whether to traverse unknown space
+   * @return CollisionResult containing collision status and cost
+   */
+  struct CollisionResult {
+    bool in_collision;
+    double cost;
+    bool needs_full_check;  // Only relevant for footprint mode
+  };
+  
+  CollisionResult checkCenterPointCollision(
+    const float& x, const float& y, const bool& traverse_unknown) const;
+
+  /**
+   * @brief Check footprint collision for a single pose
+   * @param x X coordinate (in map cells)
+   * @param y Y coordinate (in map cells) 
+   * @param angle_bin Angle bin index for precomputed footprints
+   * @param traverse_unknown Whether to traverse unknown space
+   * @return CollisionResult containing collision status and cost
+   */
+  CollisionResult checkFootprintCollision(
+    const float& x, const float& y, const float& angle_bin, 
+    const bool& traverse_unknown) const;
+
+  /**
+   * @brief Compute convex hull of a set of points using Graham scan
+   * @param points Input points
+   * @return Convex hull points in counter-clockwise order
+   */
+  std::vector<geometry_msgs::msg::Point> computeConvexHull(
+    const std::vector<geometry_msgs::msg::Point>& points) const;
+
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
   std::vector<nav2_costmap_2d::Footprint> oriented_footprints_;
   nav2_costmap_2d::Footprint unoriented_footprint_;

@@ -12,6 +12,7 @@ find_package(nav2_util REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(ompl REQUIRED)
+find_package(OpenCV REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
@@ -56,6 +57,7 @@ target_link_libraries(${library_name}_common PUBLIC
   ${nav_msgs_TARGETS}
   nlohmann_json::nlohmann_json
   ${OMPL_LIBRARIES}
+  ${OpenCV_LIBS}
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   tf2::tf2

@@ -45,11 +45,11 @@ FootprintCollisionChecker<CostmapT>::FootprintCollisionChecker(
 }
 
 template<typename CostmapT>
-double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & footprint)
+double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & footprint, bool check_full_area)
 {
-  // now we really have to lay down the footprint in the costmap_ grid
+  // Check perimeter first (vertices/edges)
   unsigned int x0, x1, y0, y1;
-  double footprint_cost = 0.0;
+  double perimeter_cost = 0.0;
 
   // get the cell coord of the first point
   if (!worldToMap(footprint[0].x, footprint[0].y, x0, y0)) {
@@ -67,26 +67,33 @@ double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & foot
       return static_cast<double>(NO_INFORMATION);
     }
 
-    footprint_cost = std::max(lineCost(x0, x1, y0, y1), footprint_cost);
+    perimeter_cost = std::max(lineCost(x0, x1, y0, y1), perimeter_cost);
 
     // the second point is next iteration's first point
     x0 = x1;
     y0 = y1;
 
-    // if in collision, no need to continue
-    if (footprint_cost == static_cast<double>(LETHAL_OBSTACLE)) {
-      return footprint_cost;
+    // if in collision, no need to continue checking anything
+    if (perimeter_cost == static_cast<double>(LETHAL_OBSTACLE)) {
+      return perimeter_cost;
     }
   }
 
   // we also need to connect the first point in the footprint to the last point
   // the last iteration's x1, y1 are the last footprint point's coordinates
-  return std::max(lineCost(xstart, x1, ystart, y1), footprint_cost);
-}
+  perimeter_cost = std::max(lineCost(xstart, x1, ystart, y1), perimeter_cost);
 
-template<typename CostmapT>
-double FootprintCollisionChecker<CostmapT>::footprintAreaCost(const Footprint & footprint)
-{
+  // Early exit if perimeter already has lethal cost
+  if (perimeter_cost == static_cast<double>(LETHAL_OBSTACLE)) {
+    return perimeter_cost;
+  }
+
+  // If only checking perimeter, return now
+  if (!check_full_area) {
+    return perimeter_cost;
+  }
+
+  // Check interior area only if perimeter didn't have lethal cost
   // Find bounding box of footprint
   double min_x = std::numeric_limits<double>::max();
   double max_x = std::numeric_limits<double>::lowest();
@@ -107,7 +114,7 @@ double FootprintCollisionChecker<CostmapT>::footprintAreaCost(const Footprint & 
     return static_cast<double>(NO_INFORMATION);
   }
 
-  double max_cost = 0.0;
+  double max_cost = perimeter_cost;
 
   // Check all cells within bounding box
   for (unsigned int my = min_my; my <= max_my; ++my) {
@@ -188,7 +195,7 @@ double FootprintCollisionChecker<CostmapT>::footprintCostAtPose(
     oriented_footprint.push_back(new_pt);
   }
 
-  return footprintAreaCost(oriented_footprint);
+  return footprintCost(oriented_footprint);
 }
 
 template<typename CostmapT>
