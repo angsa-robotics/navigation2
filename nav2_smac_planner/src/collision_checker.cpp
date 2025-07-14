@@ -197,11 +197,22 @@ bool GridCollisionChecker::inCollision(
   }
 
   for (const auto& pose : path) {
-    auto theta = tf2::getYaw(pose.pose.orientation);
+    unsigned int mx, my;
+    if (!costmap_->worldToMap(pose.pose.position.x, pose.pose.position.y, mx, my)) {
+      return true; // Outside map bounds = collision
+    }
+
+    double yaw = tf2::getYaw(pose.pose.orientation);
+    while (yaw < 0.0) yaw += 2.0 * M_PI;
+    while (yaw >= 2.0 * M_PI) yaw -= 2.0 * M_PI;
+    
+    double bin_size = 2.0 * M_PI / static_cast<double>(angles_.size());
+    unsigned int angle_bin = static_cast<unsigned int>(yaw / bin_size) % angles_.size();
+
     bool in_collision = inCollision(
-      static_cast<float>(pose.pose.position.x),
-      static_cast<float>(pose.pose.position.y),
-      static_cast<float>(theta), 
+      static_cast<float>(mx),
+      static_cast<float>(my),
+      static_cast<float>(angle_bin), 
       traverse_unknown);
     if (in_collision) {
       return true; // Early exit if any pose is in collision
