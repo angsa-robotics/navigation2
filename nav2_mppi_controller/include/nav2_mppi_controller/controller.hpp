@@ -27,6 +27,8 @@
 #include "nav2_core/controller.hpp"
 #include "nav2_core/goal_checker.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
+#include "std_msgs/msg/header.hpp"
 
 namespace nav2_mppi_controller
 {
@@ -113,12 +115,23 @@ protected:
     const builtin_interfaces::msg::Time & cmd_stamp,
     const Eigen::ArrayXXf & optimal_trajectory);
 
+  /**
+    * @brief Create footprint markers from trajectory
+    * @param trajectory Optimal trajectory
+    * @param header Message header
+    * @return MarkerArray containing footprint polygons
+    */
+  visualization_msgs::msg::MarkerArray createFootprintMarkers(
+    const Eigen::ArrayXXf & trajectory,
+    const std_msgs::msg::Header & header);
+
   std::string name_;
   rclcpp_lifecycle::LifecycleNode::WeakPtr parent_;
   rclcpp::Logger logger_{rclcpp::get_logger("MPPIController")};
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   rclcpp_lifecycle::LifecyclePublisher<nav2_msgs::msg::Trajectory>::SharedPtr opt_traj_pub_;
+  rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr opt_footprints_pub_;
 
   std::unique_ptr<ParametersHandler> parameters_handler_;
   Optimizer optimizer_;
@@ -127,6 +140,7 @@ protected:
 
   bool visualize_;
   bool publish_optimal_trajectory_;
+  bool publish_optimal_footprints_;
 };
 
 }  // namespace nav2_mppi_controller
