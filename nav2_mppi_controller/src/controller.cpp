@@ -160,7 +160,7 @@ void MPPIController::visualize(
   const builtin_interfaces::msg::Time & cmd_stamp,
   const Eigen::ArrayXXf & optimal_trajectory)
 {
-  trajectory_visualizer_.add(optimizer_.getGeneratedTrajectories(), "Candidate Trajectories");
+  trajectory_visualizer_.add(optimizer_.getGeneratedTrajectories(), "Candidate Trajectories", cmd_stamp);
   if (optimal_trajectory.size() > 0) {
     trajectory_visualizer_.add(optimal_trajectory, "Optimal Trajectory", cmd_stamp);
   } else {

@@ -104,7 +104,8 @@ void TrajectoryVisualizer::add(
 }
 
 void TrajectoryVisualizer::add(
-  const models::Trajectories & trajectories, const std::string & marker_namespace)
+  const models::Trajectories & trajectories, const std::string & marker_namespace, const builtin_interfaces::msg::Time & cmd_stamp)
+
 {
   size_t n_rows = trajectories.x.rows();
   size_t n_cols = trajectories.x.cols();
@@ -122,6 +123,7 @@ void TrajectoryVisualizer::add(
       auto color = utils::createColor(0, green_component, blue_component, 1);
       auto marker = utils::createMarker(
         marker_id_++, pose, scale, color, frame_id_, marker_namespace);
+      marker.header.stamp = cmd_stamp;
 
       points_->markers.push_back(marker);
     }
