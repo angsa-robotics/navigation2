@@ -149,7 +149,7 @@ bool GridCollisionChecker::inCollision(
     }
 
     // Check full area covered by footprint
-    float footprint_cost = static_cast<float>(footprintAreaCost(current_footprint));
+    float footprint_cost = static_cast<float>(footprintCost(current_footprint));
 
     if (footprint_cost == UNKNOWN_COST && traverse_unknown) {
       return false;
@@ -190,6 +190,114 @@ float GridCollisionChecker::getCost()
 bool GridCollisionChecker::outsideRange(const unsigned int & max, const float & value)
 {
   return value < 0.0f || value > max;
+}
+
+CollisionResult GridCollisionChecker::inCollision(
+  const std::vector<float> & x,
+  const std::vector<float> & y,
+  const std::vector<float> & angle_bin,
+  const bool & traverse_unknown)
+{
+  CollisionResult result;
+  result.in_collision = false;
+
+  // Check if all vectors have the same size
+  if (x.size() != y.size() || x.size() != angle_bin.size()) {
+    result.in_collision = true;
+    return result;
+  }
+
+  // Initialize result vectors
+  result.center_cost.resize(x.size(), 0.0f);
+
+  // Process each pose
+  for (size_t i = 0; i < x.size(); ++i) {
+    // Check to make sure cell is inside the map
+    if (outsideRange(costmap_->getSizeInCellsX(), x[i]) ||
+        outsideRange(costmap_->getSizeInCellsY(), y[i]))
+    {
+      result.in_collision = true;
+      return result;
+    }
+
+    // Get center cost for this pose
+    float current_center_cost = static_cast<float>(costmap_->getCost(
+      static_cast<unsigned int>(x[i] + 0.5f), static_cast<unsigned int>(y[i] + 0.5f)));
+    
+    result.center_cost[i] = current_center_cost;
+
+    if (!footprint_is_radius_) {
+      // if footprint, then we check for the footprint's points, but first see
+      // if the robot is even potentially in an inscribed collision
+      if (current_center_cost < possible_collision_cost_ && possible_collision_cost_ > 0.0f) {
+        continue;
+      }
+
+      // If its inscribed, in collision, or unknown in the middle,
+      // no need to even check the footprint, its invalid
+      if (current_center_cost == UNKNOWN_COST && !traverse_unknown) {
+        result.in_collision = true;
+        return result;
+      }
+
+      if (current_center_cost == INSCRIBED_COST || current_center_cost == OCCUPIED_COST) {
+        result.in_collision = true;
+        return result;
+      }
+
+      // Use full area checking instead of edge-only checking
+      double wx, wy;
+      costmap_->mapToWorld(static_cast<double>(x[i]), static_cast<double>(y[i]), wx, wy);
+      geometry_msgs::msg::Point new_pt;
+      const nav2_costmap_2d::Footprint & oriented_footprint = oriented_footprints_[static_cast<unsigned int>(angle_bin[i])];
+      nav2_costmap_2d::Footprint current_footprint;
+      current_footprint.reserve(oriented_footprint.size());
+      
+      for (unsigned int j = 0; j < oriented_footprint.size(); ++j) {
+        new_pt.x = wx + oriented_footprint[j].x;
+        new_pt.y = wy + oriented_footprint[j].y;
+        current_footprint.push_back(new_pt);
+      }
+
+      // Check footprint perimeter first
+      float footprint_cost = static_cast<float>(footprintCost(current_footprint, false));
+
+      if (footprint_cost == UNKNOWN_COST && traverse_unknown) {
+        continue;
+      }
+
+      // if occupied or unknown and not to traverse unknown space
+      if (footprint_cost >= OCCUPIED_COST) {
+        result.in_collision = true;
+        return result;
+      }
+
+      // If footprint cost is not sufficient to determine collision, check full area
+      float area_cost = static_cast<float>(footprintCost(current_footprint, true));
+
+      if (area_cost == UNKNOWN_COST && traverse_unknown) {
+        continue;
+      }
+
+      // if occupied or unknown and not to traverse unknown space
+      if (area_cost >= OCCUPIED_COST) {
+        result.in_collision = true;
+        return result;
+      }
+    } else {
+      if (current_center_cost == UNKNOWN_COST && traverse_unknown) {
+        continue;
+      }
+
+      // if occupied or unknown and not to traverse unknown space
+      if (current_center_cost >= INSCRIBED_COST) {
+        result.in_collision = true;
+        return result;
+      }
+    }
+  }
+
+  return result;
 }
 
 }  // namespace nav2_smac_planner

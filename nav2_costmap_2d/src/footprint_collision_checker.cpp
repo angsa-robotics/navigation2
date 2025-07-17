@@ -18,6 +18,9 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cmath>
+
+#include <opencv2/imgproc.hpp>
 
 #include "nav2_costmap_2d/footprint_collision_checker.hpp"
 
@@ -88,7 +91,59 @@ double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & foot
     return perimeter_cost;
   }
   
-  return perimeter_cost;
+  // If no collision on perimeter and full area check requested, rasterize the full area
+  
+  // Convert footprint to map coordinates for rasterization
+  std::vector<cv::Point> polygon_points;
+  polygon_points.reserve(footprint.size());
+  
+  for (const auto& point : footprint) {
+    unsigned int mx, my;
+    if (!worldToMap(point.x, point.y, mx, my)) {
+      return static_cast<double>(NO_INFORMATION);
+    }
+    polygon_points.emplace_back(static_cast<int>(mx), static_cast<int>(my));
+  }
+  
+  // Find bounding box for the polygon
+  cv::Rect bbox = cv::boundingRect(polygon_points);
+  
+  // Create a mask for the polygon area
+  cv::Mat mask = cv::Mat::zeros(bbox.height, bbox.width, CV_8UC1);
+  
+  // Translate polygon points to mask coordinates (relative to bounding box)
+  std::vector<cv::Point> mask_points;
+  mask_points.reserve(polygon_points.size());
+  for (const auto& pt : polygon_points) {
+    mask_points.emplace_back(pt.x - bbox.x, pt.y - bbox.y);
+  }
+  
+  // Fill the polygon in the mask using OpenCV rasterization
+  cv::fillPoly(mask, std::vector<std::vector<cv::Point>>{mask_points}, cv::Scalar(255));
+  
+  double max_cost = perimeter_cost;
+  
+  // Iterate through the mask and check costs only for cells inside the polygon
+  for (int y = 0; y < mask.rows; ++y) {
+    for (int x = 0; x < mask.cols; ++x) {
+      if (mask.at<uint8_t>(y, x) > 0) {  // Cell is inside polygon
+        // Convert back to map coordinates
+        unsigned int map_x = static_cast<unsigned int>(bbox.x + x);
+        unsigned int map_y = static_cast<unsigned int>(bbox.y + y);
+        
+        double cell_cost = pointCost(static_cast<int>(map_x), static_cast<int>(map_y));
+        
+        // Early termination if lethal obstacle found
+        if (cell_cost == static_cast<double>(LETHAL_OBSTACLE)) {
+          return cell_cost;
+        }
+        
+        max_cost = std::max(max_cost, cell_cost);
+      }
+    }
+  }
+
+  return max_cost;
 }
 
 template<typename CostmapT>
@@ -147,42 +202,7 @@ double FootprintCollisionChecker<CostmapT>::footprintCostAtPose(
     oriented_footprint.push_back(new_pt);
   }
 
-  return footprintAreaCost(oriented_footprint);
-}
-
-template<typename CostmapT>
-bool FootprintCollisionChecker<CostmapT>::isPointInFootprint(
-  double x, double y, 
-  const Footprint & footprint)
-{
-  // Adaptation of Shimrat, Moshe. "Algorithm 112: position of point relative to polygon."
-  // Communications of the ACM 5.8 (1962): 434.
-  // Implementation of ray crossings algorithm for point in polygon task solving.
-  // Y coordinate is fixed. Moving the ray on X+ axis starting from given point.
-  // Odd number of intersections with polygon boundaries means the point is inside polygon.
-  const int poly_size = footprint.size();
-  int i, j;  // Polygon vertex iterators
-  bool res = false;  // Final result, initialized with already inverted value
-
-  // Starting from the edge where the last point of polygon is connected to the first
-  i = poly_size - 1;
-  for (j = 0; j < poly_size; j++) {
-    // Checking the edge only if given point is between edge boundaries by Y coordinates.
-    // One of the condition should contain equality in order to exclude the edges
-    // parallel to X+ ray.
-    if ((y <= footprint[i].y) == (y > footprint[j].y)) {
-      // Calculating the intersection coordinate of X+ ray
-      const double x_inter = footprint[i].x +
-        (y - footprint[i].y) * (footprint[j].x - footprint[i].x) /
-        (footprint[j].y - footprint[i].y);
-      // If intersection with checked edge is greater than point.x coordinate, inverting the result
-      if (x_inter > x) {
-        res = !res;
-      }
-    }
-    i = j;
-  }
-  return res;
+  return footprintCost(oriented_footprint);
 }
 
 // declare our valid template parameters

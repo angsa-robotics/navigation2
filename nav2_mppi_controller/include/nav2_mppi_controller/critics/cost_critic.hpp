@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "nav2_costmap_2d/footprint_collision_checker.hpp"
 #include "nav2_costmap_2d/inflation_layer.hpp"
+#include "nav2_smac_planner/collision_checker.hpp"
 
 #include "nav2_mppi_controller/critic_function.hpp"
 #include "nav2_mppi_controller/models/state.hpp"
@@ -48,38 +48,6 @@ public:
   void score(CriticData & data) override;
 
 protected:
-  /**
-    * @brief Checks if cost represents a collision
-    * @param cost Point cost at pose center
-    * @param x X of pose
-    * @param y Y of pose
-    * @param theta theta of pose
-    * @return bool if in collision
-    */
-  inline bool inCollision(float cost, float x, float y, float theta)
-  {
-    // If consider_footprint_ check footprint scort for collision
-    float score_cost = cost;
-    if (consider_footprint_ &&
-      (cost >= possible_collision_cost_ || possible_collision_cost_ < 1.0f))
-    {
-      score_cost = static_cast<float>(collision_checker_.footprintCostAtPose(
-          static_cast<double>(x), static_cast<double>(y), static_cast<double>(theta),
-          costmap_ros_->getRobotFootprint()));
-    }
-
-    switch (static_cast<unsigned char>(score_cost)) {
-      case (nav2_costmap_2d::LETHAL_OBSTACLE):
-        return true;
-      case (nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE):
-        return consider_footprint_ ? false : true;
-      case (nav2_costmap_2d::NO_INFORMATION):
-        return is_tracking_unknown_ ? false : true;
-    }
-
-    return false;
-  }
-
   /**
     * @brief Find the min cost of the inflation decay function for which the robot MAY be
     * in collision in any orientation
@@ -123,9 +91,9 @@ protected:
     return my * size_x_ + mx;
   }
 
-  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D *>
-  collision_checker_{nullptr};
+  std::unique_ptr<nav2_smac_planner::GridCollisionChecker> collision_checker_;
   float possible_collision_cost_;
+
 
   bool consider_footprint_{true};
   bool is_tracking_unknown_{true};
@@ -137,6 +105,8 @@ protected:
   float weight_{0};
   unsigned int trajectory_point_step_;
 
+  unsigned int angle_quantization_bins_{72};  // New parameter for angle quantization
+  double angle_bin_size_;
   float origin_x_, origin_y_, resolution_;
   unsigned int size_x_, size_y_;
 

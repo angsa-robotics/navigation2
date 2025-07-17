@@ -27,6 +27,15 @@ namespace nav2_smac_planner
 {
 
 /**
+ * @struct CollisionResult
+ * @brief Result structure for batch collision checking
+ */
+struct CollisionResult {
+  bool in_collision;
+  std::vector<float> center_cost;
+};
+
+/**
  * @class nav2_smac_planner::GridCollisionChecker
  * @brief A costmap grid collision checker
  */
@@ -90,6 +99,21 @@ public:
    */
   bool inCollision(
     const unsigned int & i,
+    const bool & traverse_unknown);
+
+
+  /**
+   * @brief Check if in collision with costmap and footprint at poses (batch processing)
+   * @param x Vector of X coordinates of poses to check against
+   * @param y Vector of Y coordinates of poses to check against
+   * @param angle_bin Vector of angle bin numbers of poses to check against (NOT radians)
+   * @param traverse_unknown Whether or not to traverse in unknown space
+   * @return CollisionResult struct with collision status and vectors of center cost, footprint cost, and area cost
+   */
+  CollisionResult inCollision(
+    const std::vector<float> & x,
+    const std::vector<float> & y,
+    const std::vector<float> & angle_bin,
     const bool & traverse_unknown);
 
   /**

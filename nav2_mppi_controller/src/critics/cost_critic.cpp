@@ -16,6 +16,7 @@
 #include <cmath>
 #include "nav2_mppi_controller/critics/cost_critic.hpp"
 #include "nav2_core/controller_exceptions.hpp"
+#include "nav2_costmap_2d/cost_values.hpp"
 
 namespace mppi::critics
 {
@@ -35,6 +36,8 @@ void CostCritic::initialize()
   getParam(near_goal_distance_, "near_goal_distance", 0.5f);
   getParam(inflation_layer_name_, "inflation_layer_name", std::string(""));
   getParam(trajectory_point_step_, "trajectory_point_step", 2);
+  getParam(angle_quantization_bins_, "angle_quantization_bins", 72);
+  angle_bin_size_ = 2.0 * M_PI / angle_quantization_bins_;
 
   // Normalized by cost value to put in same regime as other weights
   weight_ /= 254.0f;
@@ -46,18 +49,8 @@ void CostCritic::initialize()
     };
   parameters_handler_->addParamCallback(name_ + ".cost_weight", weightDynamicCb);
 
-  collision_checker_.setCostmap(costmap_);
-  possible_collision_cost_ = findCircumscribedCost(costmap_ros_);
-
-  if (possible_collision_cost_ < 1.0f) {
-    RCLCPP_ERROR(
-      logger_,
-      "Inflation layer either not found or inflation is not set sufficiently for "
-      "optimized non-circular collision checking capabilities. It is HIGHLY recommended to set"
-      " the inflation radius to be at MINIMUM half of the robot's largest cross-section. See "
-      "github.com/ros-planning/navigation2/tree/main/nav2_smac_planner#potential-fields"
-      " for full instructions. This will substantially impact run-time performance.");
-  }
+  collision_checker_ = std::make_unique<nav2_smac_planner::GridCollisionChecker>(
+    costmap_ros_, angle_quantization_bins_, parent_.lock());
 
   if (costmap_ros_->getUseRadius() == consider_footprint_) {
     RCLCPP_WARN(
@@ -139,19 +132,13 @@ void CostCritic::score(CriticData & data)
 
   // Setup cost information for various parts of the critic
   is_tracking_unknown_ = costmap_ros_->getLayeredCostmap()->isTrackingUnknown();
-  auto * costmap = collision_checker_.getCostmap();
+  auto * costmap = collision_checker_->getCostmap();
   origin_x_ = static_cast<float>(costmap->getOriginX());
   origin_y_ = static_cast<float>(costmap->getOriginY());
   resolution_ = static_cast<float>(costmap->getResolution());
   size_x_ = costmap->getSizeInCellsX();
   size_y_ = costmap->getSizeInCellsY();
 
-  if (consider_footprint_) {
-    // footprint may have changed since initialization if user has dynamic footprints
-    possible_collision_cost_ = findCircumscribedCost(costmap_ros_);
-  }
-
-  // If near the goal, don't apply the preferential term since the goal is near obstacles
   bool near_goal = false;
   if (utils::withinPositionGoalTolerance(near_goal_distance_, data.state.pose.pose, goal)) {
     near_goal = true;
@@ -175,42 +162,74 @@ void CostCritic::score(CriticData & data)
       Eigen::Stride<-1, -1>>(data.trajectories.yaws.data(), strided_traj_rows, strided_traj_cols,
       Eigen::Stride<-1, -1>(outer_stride, 1));
 
+  collision_checker_->setFootprint(
+    costmap_ros_->getRobotFootprint(),
+    costmap_ros_->getUseRadius(),
+    findCircumscribedCost(costmap_ros_));
+
+  // Batch collision checking using new vectorized function
   for (int i = 0; i < strided_traj_rows; ++i) {
     bool trajectory_collide = false;
-    float pose_cost = 0.0f;
     float & traj_cost = repulsive_cost(i);
 
+    // Prepare vectors for batch collision checking
+    std::vector<float> x_coords, y_coords, angle_bins;
+    x_coords.reserve(strided_traj_cols);
+    y_coords.reserve(strided_traj_cols);
+    angle_bins.reserve(strided_traj_cols);
+
+    // Convert world coordinates to map coordinates and prepare angle bins
     for (int j = 0; j < strided_traj_cols; j++) {
       float Tx = traj_x(i, j);
       float Ty = traj_y(i, j);
       unsigned int x_i = 0u, y_i = 0u;
 
-      // The getCost doesn't use orientation
-      // The footprintCostAtPose will always return "INSCRIBED" if footprint is over it
-      // So the center point has more information than the footprint
       if (!worldToMapFloat(Tx, Ty, x_i, y_i)) {
-        pose_cost = 255.0f;  // NO_INFORMATION in float
-      } else {
-        pose_cost = static_cast<float>(costmap->getCost(getIndex(x_i, y_i)));
-        if (pose_cost < 1.0f) {
-          continue;  // In free space
-        }
-      }
-
-      if (inCollision(pose_cost, Tx, Ty, traj_yaw(i, j))) {
+        // If any point is outside the map, mark trajectory as colliding
         traj_cost = collision_cost_;
         trajectory_collide = true;
         break;
       }
 
+      // Get the corresponding angle bin for the trajectory point
+      double orientation_bin = std::round(traj_yaw(i, j) / angle_bin_size_);
+      while (orientation_bin < 0.0) {
+        orientation_bin += static_cast<double>(angle_quantization_bins_);
+      }
+      // This is needed to handle precision issues
+      if (orientation_bin >= static_cast<double>(angle_quantization_bins_)) {
+        orientation_bin -= static_cast<double>(angle_quantization_bins_);
+      }
+
+      x_coords.push_back(static_cast<float>(x_i));
+      y_coords.push_back(static_cast<float>(y_i));
+      angle_bins.push_back(static_cast<float>(orientation_bin));
+    }
+
+    // Skip batch collision checking if trajectory already marked as colliding
+    if (trajectory_collide) {
+      continue;
+    }
+
+    // Perform batch collision checking
+    auto collision_result = collision_checker_->inCollision(
+      x_coords, y_coords, angle_bins, is_tracking_unknown_);
+
+    if (collision_result.in_collision) {
+      traj_cost = collision_cost_;
+      trajectory_collide = true;
+    } else {
+      for (size_t k = 0; k < collision_result.center_cost.size(); ++k) {
+        float cost = collision_result.center_cost[k];
+        if (cost >= static_cast<float>(near_collision_cost_)) {
+          traj_cost += critical_cost_;
+        } else if (!near_goal) {  // Generally prefer trajectories further from obstacles
+          traj_cost += cost;
+        }
+      }
       // Let near-collision trajectory points be punished severely
       // Note that we collision check based on the footprint actual,
       // but score based on the center-point cost regardless
-      if (pose_cost >= static_cast<float>(near_collision_cost_)) {
-        traj_cost += critical_cost_;
-      } else if (!near_goal) {  // Generally prefer trajectories further from obstacles
-        traj_cost += pose_cost;
-      }
     }
 
     all_trajectories_collide &= trajectory_collide;
