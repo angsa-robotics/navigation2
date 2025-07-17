@@ -45,9 +45,9 @@ FootprintCollisionChecker<CostmapT>::FootprintCollisionChecker(
 }
 
 template<typename CostmapT>
-double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & footprint)
+double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & footprint, bool check_full_area)
 {
-  // now we really have to lay down the footprint in the costmap_ grid
+  // First check the perimeter
   unsigned int x0, x1, y0, y1;
   double footprint_cost = 0.0;
 
@@ -81,55 +81,14 @@ double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & foot
 
   // we also need to connect the first point in the footprint to the last point
   // the last iteration's x1, y1 are the last footprint point's coordinates
-  return std::max(lineCost(xstart, x1, ystart, y1), footprint_cost);
-}
-
-template<typename CostmapT>
-double FootprintCollisionChecker<CostmapT>::footprintAreaCost(const Footprint & footprint)
-{
-  // Find bounding box of footprint
-  double min_x = std::numeric_limits<double>::max();
-  double max_x = std::numeric_limits<double>::lowest();
-  double min_y = std::numeric_limits<double>::max();
-  double max_y = std::numeric_limits<double>::lowest();
-
-  for (const auto & point : footprint) {
-    min_x = std::min(min_x, point.x);
-    max_x = std::max(max_x, point.x);
-    min_y = std::min(min_y, point.y);
-    max_y = std::max(max_y, point.y);
+  double perimeter_cost = std::max(lineCost(xstart, x1, ystart, y1), footprint_cost);
+  
+  // If perimeter check found collision or full area check not requested, return perimeter result
+  if (perimeter_cost == static_cast<double>(LETHAL_OBSTACLE) || !check_full_area) {
+    return perimeter_cost;
   }
-
-  // Convert to grid coordinates
-  unsigned int min_mx, min_my, max_mx, max_my;
-  if (!worldToMap(min_x, min_y, min_mx, min_my) ||
-      !worldToMap(max_x, max_y, max_mx, max_my)) {
-    return static_cast<double>(NO_INFORMATION);
-  }
-
-  double max_cost = 0.0;
-
-  // Check all cells within bounding box
-  for (unsigned int my = min_my; my <= max_my; ++my) {
-    for (unsigned int mx = min_mx; mx <= max_mx; ++mx) {
-      double wx, wy;
-      costmap_->mapToWorld(mx, my, wx, wy);
-
-      if (isPointInFootprint(wx, wy, footprint)) {
-        double cost = pointCost(mx, my);
-        
-        if (cost == static_cast<double>(LETHAL_OBSTACLE)) {
-          return cost;
-        } else if (cost == static_cast<double>(NO_INFORMATION)) {
-          // Return NO_INFORMATION for unknown cells, let caller decide how to handle
-          return cost;
-        }
-        max_cost = std::max(max_cost, cost);
-      }
-    }
-  }
-
-  return max_cost;
+  
+  return perimeter_cost;
 }
 
 template<typename CostmapT>
