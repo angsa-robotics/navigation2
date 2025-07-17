@@ -210,7 +210,9 @@ CollisionResult GridCollisionChecker::inCollision(
   // Initialize result vectors
   result.center_cost.resize(x.size(), 0.0f);
 
-  // Process each pose
+  // Step 1: Check all poses for bounds and get center costs
+  std::vector<bool> needs_footprint_check(x.size(), false);
+  
   for (size_t i = 0; i < x.size(); ++i) {
     // Check to make sure cell is inside the map
     if (outsideRange(costmap_->getSizeInCellsX(), x[i]) ||
@@ -226,26 +228,36 @@ CollisionResult GridCollisionChecker::inCollision(
     
     result.center_cost[i] = current_center_cost;
 
+    if (current_center_cost == UNKNOWN_COST && !traverse_unknown) {
+      result.in_collision = true;
+      return result;
+    }
+
+    if (current_center_cost >= INSCRIBED_COST) {
+      result.in_collision = true;
+      return result;
+    }
+
+    // For footprint-based collision checking, mark poses that need further checking
     if (!footprint_is_radius_) {
-      // if footprint, then we check for the footprint's points, but first see
-      // if the robot is even potentially in an inscribed collision
-      if (current_center_cost < possible_collision_cost_ && possible_collision_cost_ > 0.0f) {
+      // Skip if center cost is below collision threshold
+      if (current_center_cost >= possible_collision_cost_ || possible_collision_cost_ <= 0.0f) {
+        needs_footprint_check[i] = true;
+      }
+    }
+  }
+
+  // Step 2: If using footprint, check footprint costs for all poses
+  if (!footprint_is_radius_) {
+    std::vector<bool> needs_swept_area_check(x.size(), false);
+    
+    for (size_t i = 0; i < x.size(); ++i) {
+      // Skip poses that don't need footprint checking
+      if (!needs_footprint_check[i]) {
         continue;
       }
 
-      // If its inscribed, in collision, or unknown in the middle,
-      // no need to even check the footprint, its invalid
-      if (current_center_cost == UNKNOWN_COST && !traverse_unknown) {
-        result.in_collision = true;
-        return result;
-      }
-
-      if (current_center_cost == INSCRIBED_COST || current_center_cost == OCCUPIED_COST) {
-        result.in_collision = true;
-        return result;
-      }
-
-      // Use full area checking instead of edge-only checking
+      // Prepare footprint for collision checking
       double wx, wy;
       costmap_->mapToWorld(static_cast<double>(x[i]), static_cast<double>(y[i]), wx, wy);
       geometry_msgs::msg::Point new_pt;
@@ -259,40 +271,141 @@ CollisionResult GridCollisionChecker::inCollision(
         current_footprint.push_back(new_pt);
       }
 
-      // Check footprint perimeter first
+      // Check footprint perimeter
       float footprint_cost = static_cast<float>(footprintCost(current_footprint, false));
 
-      if (footprint_cost == UNKNOWN_COST && traverse_unknown) {
-        continue;
+      if (footprint_cost == UNKNOWN_COST && !traverse_unknown) {
+        result.in_collision = true;
+        return result;
       }
 
-      // if occupied or unknown and not to traverse unknown space
       if (footprint_cost >= OCCUPIED_COST) {
         result.in_collision = true;
         return result;
       }
 
-      // If footprint cost is not sufficient to determine collision, check full area
-      float area_cost = static_cast<float>(footprintCost(current_footprint, true));
-
-      if (area_cost == UNKNOWN_COST && traverse_unknown) {
-        continue;
+      // Mark for swept area checking if footprint cost is INSCRIBED_COST
+      if (footprint_cost == INSCRIBED_COST) {
+        needs_swept_area_check[i] = true;
       }
+    }
 
-      // if occupied or unknown and not to traverse unknown space
-      if (area_cost >= OCCUPIED_COST) {
-        result.in_collision = true;
-        return result;
+    // Step 3: Check swept area for consecutive poses with footprint cost INSCRIBED_COST
+    // Find consecutive sequences of poses that need swept area checking
+    std::vector<std::vector<size_t>> consecutive_sequences;
+    std::vector<size_t> current_sequence;
+    
+    for (size_t i = 0; i < x.size(); ++i) {
+      if (needs_swept_area_check[i]) {
+        current_sequence.push_back(i);
+      } else {
+        if (!current_sequence.empty()) {
+          // Only add sequences with more than one pose
+          if (current_sequence.size() > 1) {
+            consecutive_sequences.push_back(current_sequence);
+          }
+          current_sequence.clear();
+        }
       }
-    } else {
-      if (current_center_cost == UNKNOWN_COST && traverse_unknown) {
-        continue;
+    }
+    
+    // Don't forget the last sequence if it ends at the last pose
+    if (!current_sequence.empty()) {
+      // Only add sequences with more than one pose
+      if (current_sequence.size() > 1) {
+        consecutive_sequences.push_back(current_sequence);
       }
-
-      // if occupied or unknown and not to traverse unknown space
-      if (current_center_cost >= INSCRIBED_COST) {
-        result.in_collision = true;
-        return result;
+    }
+    
+    // Process each consecutive sequence for swept area checking
+    for (const auto& sequence : consecutive_sequences) {
+      if (sequence.empty()) continue;
+      
+      // Use discretized checking: sample intermediate poses and check individual footprints
+      const double discretization_step = 0.1; // meters - adjust based on footprint size
+      
+      for (size_t i = 0; i < sequence.size() - 1; ++i) {
+        size_t current_idx = sequence[i];
+        size_t next_idx = sequence[i + 1];
+        
+        // Get current and next pose coordinates
+        double current_x = static_cast<double>(x[current_idx]);
+        double current_y = static_cast<double>(y[current_idx]);
+        double current_angle = angles_[static_cast<unsigned int>(angle_bin[current_idx])];
+        
+        double next_x = static_cast<double>(x[next_idx]);
+        double next_y = static_cast<double>(y[next_idx]);
+        double next_angle = angles_[static_cast<unsigned int>(angle_bin[next_idx])];
+        
+        // Calculate distance between poses
+        double dx = next_x - current_x;
+        double dy = next_y - current_y;
+        double distance = sqrt(dx * dx + dy * dy);
+        
+        // Handle angle interpolation (shortest path on circle)
+        double angle_diff = next_angle - current_angle;
+        if (angle_diff > M_PI) angle_diff -= 2 * M_PI;
+        if (angle_diff < -M_PI) angle_diff += 2 * M_PI;
+        
+        // Calculate number of intermediate samples needed
+        int num_samples = static_cast<int>(ceil(distance / discretization_step));
+        if (num_samples < 2) num_samples = 2; // Always sample at least start and end
+        
+        // Sample intermediate poses and check each footprint
+        for (int sample = 0; sample <= num_samples; ++sample) {
+          double t = static_cast<double>(sample) / static_cast<double>(num_samples);
+          
+          // Interpolate position
+          double sample_x = current_x + t * dx;
+          double sample_y = current_y + t * dy;
+          
+          // Interpolate angle
+          double sample_angle = current_angle + t * angle_diff;
+          
+          // Normalize angle to [0, 2π)
+          while (sample_angle < 0) sample_angle += 2 * M_PI;
+          while (sample_angle >= 2 * M_PI) sample_angle -= 2 * M_PI;
+          
+          // Find closest angle bin
+          unsigned int sample_angle_bin = static_cast<unsigned int>(
+            round(sample_angle / (2 * M_PI) * angles_.size())) % angles_.size();
+          
+          // Check bounds
+          if (outsideRange(costmap_->getSizeInCellsX(), static_cast<float>(sample_x)) ||
+              outsideRange(costmap_->getSizeInCellsY(), static_cast<float>(sample_y))) {
+            result.in_collision = true;
+            return result;
+          }
+          
+          // Create footprint for this intermediate pose
+          double wx, wy;
+          costmap_->mapToWorld(sample_x, sample_y, wx, wy);
+          
+          const nav2_costmap_2d::Footprint & oriented_footprint = 
+            oriented_footprints_[sample_angle_bin];
+          nav2_costmap_2d::Footprint sample_footprint;
+          sample_footprint.reserve(oriented_footprint.size());
+          
+          for (const auto& fp_point : oriented_footprint) {
+            geometry_msgs::msg::Point world_point;
+            world_point.x = wx + fp_point.x;
+            world_point.y = wy + fp_point.y;
+            sample_footprint.push_back(world_point);
+          }
+          
+          // Check collision for this intermediate footprint
+          float sample_footprint_cost = static_cast<float>(footprintCost(sample_footprint, false));
+          
+          if (sample_footprint_cost == UNKNOWN_COST && !traverse_unknown) {
+            result.in_collision = true;
+            return result;
+          }
+          
+          if (sample_footprint_cost >= OCCUPIED_COST) {
+            result.in_collision = true;
+            return result;
+          }
+        }
       }
     }
   }
