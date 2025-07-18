@@ -211,6 +211,7 @@ CollisionResult GridCollisionChecker::inCollision(
 
   // Initialize result vectors
   result.center_cost.resize(x.size(), 0.0f);
+  result.footprint_cost.resize(x.size(), 0.0f);
 
   // Step 1: Check all poses for bounds and get center costs
   std::vector<bool> needs_footprint_check(x.size(), false);
@@ -245,7 +246,14 @@ CollisionResult GridCollisionChecker::inCollision(
       // Skip if center cost is below collision threshold
       if (current_center_cost >= possible_collision_cost_ || possible_collision_cost_ <= 0.0f) {
         needs_footprint_check[i] = true;
+      } else {
+        // If center cost is below threshold, use center cost as footprint cost
+        result.footprint_cost[i] = current_center_cost;
       }
+    } else {
+      // For radius-based checking, we still need to calculate footprint cost
+      // even though we use center cost for collision detection
+      result.footprint_cost[i] = current_center_cost;
     }
   }
 
@@ -280,6 +288,9 @@ CollisionResult GridCollisionChecker::inCollision(
 
       // Check footprint perimeter
       float footprint_cost = static_cast<float>(footprintCost(current_footprint, false));
+      
+      // Store footprint cost in result
+      result.footprint_cost[i] = footprint_cost;
 
       if (footprint_cost == UNKNOWN_COST && !traverse_unknown) {
         result.in_collision = true;

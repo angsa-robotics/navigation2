@@ -33,6 +33,7 @@ namespace nav2_smac_planner
 struct CollisionResult {
   bool in_collision;
   std::vector<float> center_cost;
+  std::vector<float> footprint_cost;
 };
 
 /**
