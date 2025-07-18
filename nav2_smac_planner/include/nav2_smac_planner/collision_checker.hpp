@@ -146,6 +146,14 @@ public:
    */
   bool outsideRange(const unsigned int & max, const float & value);
 
+  /**
+   * @brief Create convex hull from a set of points
+   * @param points Input points to create convex hull from
+   * @return Convex hull as a footprint
+   */
+  nav2_costmap_2d::Footprint createConvexHull(
+    const std::vector<geometry_msgs::msg::Point>& points);
+
 protected:
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
   std::vector<nav2_costmap_2d::Footprint> oriented_footprints_;

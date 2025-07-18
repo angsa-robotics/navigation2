@@ -13,6 +13,8 @@
 // limitations under the License. Reserved.
 
 #include "nav2_smac_planner/collision_checker.hpp"
+#include <algorithm>
+#include <cmath>
 
 namespace nav2_smac_planner
 {
@@ -249,6 +251,10 @@ CollisionResult GridCollisionChecker::inCollision(
 
   // Step 2: If using footprint, check footprint costs for all poses
   if (!footprint_is_radius_) {
+    std::vector<bool> needs_swept_area_check(x.size(), false);
+    // Cache computed footprints to avoid recomputation in Step 4
+    std::vector<nav2_costmap_2d::Footprint> cached_footprints(x.size());
+    
     for (size_t i = 0; i < x.size(); ++i) {
       // Skip poses that don't need footprint checking
       if (!needs_footprint_check[i]) {
@@ -269,6 +275,9 @@ CollisionResult GridCollisionChecker::inCollision(
         current_footprint.push_back(new_pt);
       }
 
+      // Cache the computed footprint for potential reuse in Step 4
+      cached_footprints[i] = current_footprint;
+
       // Check footprint perimeter
       float footprint_cost = static_cast<float>(footprintCost(current_footprint, false));
 
@@ -282,98 +291,136 @@ CollisionResult GridCollisionChecker::inCollision(
         return result;
       }
 
-      // If footprint cost is INSCRIBED_COST, check if we need interpolation with previous pose
-      if (footprint_cost == INSCRIBED_COST && i > 0) {
-        // Get previous pose coordinates
-        double prev_x = static_cast<double>(x[i-1]);
-        double prev_y = static_cast<double>(y[i-1]);
-        double prev_angle = angles_[static_cast<unsigned int>(angle_bin[i-1])];
-        
-        double current_x = static_cast<double>(x[i]);
-        double current_y = static_cast<double>(y[i]);
-        double current_angle = angles_[static_cast<unsigned int>(angle_bin[i])];
-        
-        // Calculate distance and angle difference with previous pose
-        double dx = current_x - prev_x;
-        double dy = current_y - prev_y;
-        double distance = sqrt(dx * dx + dy * dy);
-        
-        // Handle angle interpolation (shortest path on circle)
-        double angle_diff = current_angle - prev_angle;
-        if (angle_diff > M_PI) angle_diff -= 2 * M_PI;
-        if (angle_diff < -M_PI) angle_diff += 2 * M_PI;
-        
-        // Check if distance or angle difference is significant enough for interpolation
-        const double min_distance_threshold = 0.05; // meters
-        const double min_angle_threshold = 0.05;     // radians (~5.7 degrees)
-        const double discretization_step = 0.1;     // meters
-        
-        if (distance >= min_distance_threshold || fabs(angle_diff) >= min_angle_threshold) {
-          // Calculate number of intermediate samples needed
-          int num_samples = static_cast<int>(ceil(distance / discretization_step));
-          if (num_samples < 2) num_samples = 2; // Always sample at least start and end
-          
-          // Sample intermediate poses and check each footprint
-          for (int sample = 1; sample < num_samples; ++sample) { // Skip start (prev) and end (current)
-            double t = static_cast<double>(sample) / static_cast<double>(num_samples);
-            
-            // Interpolate position
-            double sample_x = prev_x + t * dx;
-            double sample_y = prev_y + t * dy;
-            
-            // Interpolate angle
-            double sample_angle = prev_angle + t * angle_diff;
-            
-            // Normalize angle to [0, 2π)
-            while (sample_angle < 0) sample_angle += 2 * M_PI;
-            while (sample_angle >= 2 * M_PI) sample_angle -= 2 * M_PI;
-            
-            // Find closest angle bin
-            unsigned int sample_angle_bin = static_cast<unsigned int>(
-              round(sample_angle / (2 * M_PI) * angles_.size())) % angles_.size();
-            
-            // Check bounds
-            if (outsideRange(costmap_->getSizeInCellsX(), static_cast<float>(sample_x)) ||
-                outsideRange(costmap_->getSizeInCellsY(), static_cast<float>(sample_y))) {
-              result.in_collision = true;
-              return result;
-            }
-            
-            // Create footprint for this intermediate pose
-            double sample_wx, sample_wy;
-            costmap_->mapToWorld(sample_x, sample_y, sample_wx, sample_wy);
-            
-            const nav2_costmap_2d::Footprint & sample_oriented_footprint = 
-              oriented_footprints_[sample_angle_bin];
-            nav2_costmap_2d::Footprint sample_footprint;
-            sample_footprint.reserve(sample_oriented_footprint.size());
-            
-            for (const auto& fp_point : sample_oriented_footprint) {
-              geometry_msgs::msg::Point world_point;
-              world_point.x = sample_wx + fp_point.x;
-              world_point.y = sample_wy + fp_point.y;
-              sample_footprint.push_back(world_point);
-            }
-            
-            // Check collision for this intermediate footprint
-            float sample_footprint_cost = static_cast<float>(footprintCost(sample_footprint, false));
-            
-            if (sample_footprint_cost == UNKNOWN_COST && !traverse_unknown) {
-              result.in_collision = true;
-              return result;
-            }
-            
-            if (sample_footprint_cost >= OCCUPIED_COST) {
-              result.in_collision = true;
-              return result;
-            }
+      // Mark for swept area checking if footprint cost is INSCRIBED_COST
+      if (footprint_cost == INSCRIBED_COST) {
+        needs_swept_area_check[i] = true;
+      }
+    }
+
+    // Step 3: Check swept area for consecutive poses with footprint cost INSCRIBED_COST
+    // Find consecutive sequences of poses that need swept area checking
+    std::vector<std::vector<size_t>> consecutive_sequences;
+    std::vector<size_t> current_sequence;
+    
+    for (size_t i = 0; i < x.size(); ++i) {
+      if (needs_swept_area_check[i]) {
+        current_sequence.push_back(i);
+      } else {
+        if (!current_sequence.empty()) {
+          // Only add sequences with more than one pose
+          if (current_sequence.size() > 1) {
+            consecutive_sequences.push_back(current_sequence);
           }
+          current_sequence.clear();
         }
       }
     }
+    
+    // Don't forget the last sequence if it ends at the last pose
+    if (!current_sequence.empty()) {
+      // Only add sequences with more than one pose
+      if (current_sequence.size() > 1) {
+        consecutive_sequences.push_back(current_sequence);
+      }
+    }
+    
+    // Step 4: Check swept area using convex hull for each consecutive sequence
+    for (const auto& sequence : consecutive_sequences) {
+      // Collect all footprint points from consecutive poses using cached footprints
+      std::vector<geometry_msgs::msg::Point> all_points;
+      
+      for (size_t seq_idx : sequence) {
+        // Use cached footprint instead of recomputing
+        const nav2_costmap_2d::Footprint & current_footprint = cached_footprints[seq_idx];
+        
+        for (const auto& footprint_pt : current_footprint) {
+          all_points.push_back(footprint_pt);
+        }
+      }
+      
+      // Create convex hull from all collected points
+      nav2_costmap_2d::Footprint convex_hull = createConvexHull(all_points);
+      
+      // Check swept area cost using full area checking
+      float swept_area_cost = static_cast<float>(footprintCost(convex_hull, true));
+      
+      if (swept_area_cost == UNKNOWN_COST && !traverse_unknown) {
+        result.in_collision = true;
+        return result;
+      }
+      
+      if (swept_area_cost >= OCCUPIED_COST) {
+        result.in_collision = true;
+        return result;
+      }
+    }
+    
   }
 
   return result;
+}
+
+nav2_costmap_2d::Footprint GridCollisionChecker::createConvexHull(
+  const std::vector<geometry_msgs::msg::Point>& points)
+{
+  if (points.size() <= 1) {
+    return points;
+  }
+
+  // Create a copy of points for sorting
+  std::vector<geometry_msgs::msg::Point> sorted_points = points;
+  
+  // Sort points lexicographically (first by x, then by y)
+  std::sort(sorted_points.begin(), sorted_points.end(), 
+    [](const geometry_msgs::msg::Point& a, const geometry_msgs::msg::Point& b) {
+      return a.x < b.x || (a.x == b.x && a.y < b.y);
+    });
+
+  // Remove duplicate points
+  sorted_points.erase(
+    std::unique(sorted_points.begin(), sorted_points.end(),
+      [](const geometry_msgs::msg::Point& a, const geometry_msgs::msg::Point& b) {
+        return std::abs(a.x - b.x) < 1e-9 && std::abs(a.y - b.y) < 1e-9;
+      }),
+    sorted_points.end());
+
+  if (sorted_points.size() <= 1) {
+    return sorted_points;
+  }
+
+  // Andrew's monotone chain algorithm
+  std::vector<geometry_msgs::msg::Point> hull;
+  
+  // Helper function to compute cross product
+  auto cross = [](const geometry_msgs::msg::Point& O, 
+                  const geometry_msgs::msg::Point& A, 
+                  const geometry_msgs::msg::Point& B) {
+    return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+  };
+
+  // Build lower hull
+  for (size_t i = 0; i < sorted_points.size(); ++i) {
+    while (hull.size() >= 2 && cross(hull[hull.size()-2], hull[hull.size()-1], sorted_points[i]) <= 0) {
+      hull.pop_back();
+    }
+    hull.push_back(sorted_points[i]);
+  }
+
+  // Build upper hull
+  size_t t = hull.size() + 1;
+  for (int i = sorted_points.size() - 2; i >= 0; --i) {
+    while (hull.size() >= t && cross(hull[hull.size()-2], hull[hull.size()-1], sorted_points[i]) <= 0) {
+      hull.pop_back();
+    }
+    hull.push_back(sorted_points[i]);
+  }
+
+  // Remove last point because it's the same as the first one
+  if (hull.size() > 1) {
+    hull.pop_back();
+  }
+
+  return hull;
 }
 
 }  // namespace nav2_smac_planner
