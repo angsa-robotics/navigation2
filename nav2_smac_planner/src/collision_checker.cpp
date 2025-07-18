@@ -249,8 +249,6 @@ CollisionResult GridCollisionChecker::inCollision(
 
   // Step 2: If using footprint, check footprint costs for all poses
   if (!footprint_is_radius_) {
-    std::vector<bool> needs_swept_area_check(x.size(), false);
-    
     for (size_t i = 0; i < x.size(); ++i) {
       // Skip poses that don't need footprint checking
       if (!needs_footprint_check[i]) {
@@ -284,126 +282,91 @@ CollisionResult GridCollisionChecker::inCollision(
         return result;
       }
 
-      // Mark for swept area checking if footprint cost is INSCRIBED_COST
-      if (footprint_cost == INSCRIBED_COST) {
-        needs_swept_area_check[i] = true;
-      }
-    }
-
-    // Step 3: Check swept area for consecutive poses with footprint cost INSCRIBED_COST
-    // Find consecutive sequences of poses that need swept area checking
-    std::vector<std::vector<size_t>> consecutive_sequences;
-    std::vector<size_t> current_sequence;
-    
-    for (size_t i = 0; i < x.size(); ++i) {
-      if (needs_swept_area_check[i]) {
-        current_sequence.push_back(i);
-      } else {
-        if (!current_sequence.empty()) {
-          // Only add sequences with more than one pose
-          if (current_sequence.size() > 1) {
-            consecutive_sequences.push_back(current_sequence);
-          }
-          current_sequence.clear();
-        }
-      }
-    }
-    
-    // Don't forget the last sequence if it ends at the last pose
-    if (!current_sequence.empty()) {
-      // Only add sequences with more than one pose
-      if (current_sequence.size() > 1) {
-        consecutive_sequences.push_back(current_sequence);
-      }
-    }
-    
-    // Process each consecutive sequence for swept area checking
-    for (const auto& sequence : consecutive_sequences) {
-      if (sequence.empty()) continue;
-      
-      // Use discretized checking: sample intermediate poses and check individual footprints
-      const double discretization_step = 0.1; // meters - adjust based on footprint size
-      
-      for (size_t i = 0; i < sequence.size() - 1; ++i) {
-        size_t current_idx = sequence[i];
-        size_t next_idx = sequence[i + 1];
+      // If footprint cost is INSCRIBED_COST, check if we need interpolation with previous pose
+      if (footprint_cost == INSCRIBED_COST && i > 0) {
+        // Get previous pose coordinates
+        double prev_x = static_cast<double>(x[i-1]);
+        double prev_y = static_cast<double>(y[i-1]);
+        double prev_angle = angles_[static_cast<unsigned int>(angle_bin[i-1])];
         
-        // Get current and next pose coordinates
-        double current_x = static_cast<double>(x[current_idx]);
-        double current_y = static_cast<double>(y[current_idx]);
-        double current_angle = angles_[static_cast<unsigned int>(angle_bin[current_idx])];
+        double current_x = static_cast<double>(x[i]);
+        double current_y = static_cast<double>(y[i]);
+        double current_angle = angles_[static_cast<unsigned int>(angle_bin[i])];
         
-        double next_x = static_cast<double>(x[next_idx]);
-        double next_y = static_cast<double>(y[next_idx]);
-        double next_angle = angles_[static_cast<unsigned int>(angle_bin[next_idx])];
-        
-        // Calculate distance between poses
-        double dx = next_x - current_x;
-        double dy = next_y - current_y;
+        // Calculate distance and angle difference with previous pose
+        double dx = current_x - prev_x;
+        double dy = current_y - prev_y;
         double distance = sqrt(dx * dx + dy * dy);
         
         // Handle angle interpolation (shortest path on circle)
-        double angle_diff = next_angle - current_angle;
+        double angle_diff = current_angle - prev_angle;
         if (angle_diff > M_PI) angle_diff -= 2 * M_PI;
         if (angle_diff < -M_PI) angle_diff += 2 * M_PI;
         
-        // Calculate number of intermediate samples needed
-        int num_samples = static_cast<int>(ceil(distance / discretization_step));
-        if (num_samples < 2) num_samples = 2; // Always sample at least start and end
+        // Check if distance or angle difference is significant enough for interpolation
+        const double min_distance_threshold = 0.05; // meters
+        const double min_angle_threshold = 0.05;     // radians (~5.7 degrees)
+        const double discretization_step = 0.1;     // meters
         
-        // Sample intermediate poses and check each footprint
-        for (int sample = 0; sample <= num_samples; ++sample) {
-          double t = static_cast<double>(sample) / static_cast<double>(num_samples);
+        if (distance >= min_distance_threshold || fabs(angle_diff) >= min_angle_threshold) {
+          // Calculate number of intermediate samples needed
+          int num_samples = static_cast<int>(ceil(distance / discretization_step));
+          if (num_samples < 2) num_samples = 2; // Always sample at least start and end
           
-          // Interpolate position
-          double sample_x = current_x + t * dx;
-          double sample_y = current_y + t * dy;
-          
-          // Interpolate angle
-          double sample_angle = current_angle + t * angle_diff;
-          
-          // Normalize angle to [0, 2π)
-          while (sample_angle < 0) sample_angle += 2 * M_PI;
-          while (sample_angle >= 2 * M_PI) sample_angle -= 2 * M_PI;
-          
-          // Find closest angle bin
-          unsigned int sample_angle_bin = static_cast<unsigned int>(
-            round(sample_angle / (2 * M_PI) * angles_.size())) % angles_.size();
-          
-          // Check bounds
-          if (outsideRange(costmap_->getSizeInCellsX(), static_cast<float>(sample_x)) ||
-              outsideRange(costmap_->getSizeInCellsY(), static_cast<float>(sample_y))) {
-            result.in_collision = true;
-            return result;
-          }
-          
-          // Create footprint for this intermediate pose
-          double wx, wy;
-          costmap_->mapToWorld(sample_x, sample_y, wx, wy);
-          
-          const nav2_costmap_2d::Footprint & oriented_footprint = 
-            oriented_footprints_[sample_angle_bin];
-          nav2_costmap_2d::Footprint sample_footprint;
-          sample_footprint.reserve(oriented_footprint.size());
-          
-          for (const auto& fp_point : oriented_footprint) {
-            geometry_msgs::msg::Point world_point;
-            world_point.x = wx + fp_point.x;
-            world_point.y = wy + fp_point.y;
-            sample_footprint.push_back(world_point);
-          }
-          
-          // Check collision for this intermediate footprint
-          float sample_footprint_cost = static_cast<float>(footprintCost(sample_footprint, false));
-          
-          if (sample_footprint_cost == UNKNOWN_COST && !traverse_unknown) {
-            result.in_collision = true;
-            return result;
-          }
-          
-          if (sample_footprint_cost >= OCCUPIED_COST) {
-            result.in_collision = true;
-            return result;
+          // Sample intermediate poses and check each footprint
+          for (int sample = 1; sample < num_samples; ++sample) { // Skip start (prev) and end (current)
+            double t = static_cast<double>(sample) / static_cast<double>(num_samples);
+            
+            // Interpolate position
+            double sample_x = prev_x + t * dx;
+            double sample_y = prev_y + t * dy;
+            
+            // Interpolate angle
+            double sample_angle = prev_angle + t * angle_diff;
+            
+            // Normalize angle to [0, 2π)
+            while (sample_angle < 0) sample_angle += 2 * M_PI;
+            while (sample_angle >= 2 * M_PI) sample_angle -= 2 * M_PI;
+            
+            // Find closest angle bin
+            unsigned int sample_angle_bin = static_cast<unsigned int>(
+              round(sample_angle / (2 * M_PI) * angles_.size())) % angles_.size();
+            
+            // Check bounds
+            if (outsideRange(costmap_->getSizeInCellsX(), static_cast<float>(sample_x)) ||
+                outsideRange(costmap_->getSizeInCellsY(), static_cast<float>(sample_y))) {
+              result.in_collision = true;
+              return result;
+            }
+            
+            // Create footprint for this intermediate pose
+            double sample_wx, sample_wy;
+            costmap_->mapToWorld(sample_x, sample_y, sample_wx, sample_wy);
+            
+            const nav2_costmap_2d::Footprint & sample_oriented_footprint = 
+              oriented_footprints_[sample_angle_bin];
+            nav2_costmap_2d::Footprint sample_footprint;
+            sample_footprint.reserve(sample_oriented_footprint.size());
+            
+            for (const auto& fp_point : sample_oriented_footprint) {
+              geometry_msgs::msg::Point world_point;
+              world_point.x = sample_wx + fp_point.x;
+              world_point.y = sample_wy + fp_point.y;
+              sample_footprint.push_back(world_point);
+            }
+            
+            // Check collision for this intermediate footprint
+            float sample_footprint_cost = static_cast<float>(footprintCost(sample_footprint, false));
+            
+            if (sample_footprint_cost == UNKNOWN_COST && !traverse_unknown) {
+              result.in_collision = true;
+              return result;
+            }
+            
+            if (sample_footprint_cost >= OCCUPIED_COST) {
+              result.in_collision = true;
+              return result;
+            }
           }
         }
       }
