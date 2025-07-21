@@ -212,6 +212,7 @@ CollisionResult GridCollisionChecker::inCollision(
   // Initialize result vectors
   result.center_cost.resize(x.size(), 0.0f);
   result.footprint_cost.resize(x.size(), 0.0f);
+  result.collision_type.resize(x.size(), CollisionType::NONE);
 
   // Step 1: Check all poses for bounds and get center costs
   std::vector<bool> needs_footprint_check(x.size(), false);
@@ -233,11 +234,13 @@ CollisionResult GridCollisionChecker::inCollision(
 
     if (current_center_cost == UNKNOWN_COST && !traverse_unknown) {
       result.in_collision = true;
+      result.collision_type[i] = CollisionType::POINT_COST;
       return result;
     }
 
     if (current_center_cost >= INSCRIBED_COST) {
       result.in_collision = true;
+      result.collision_type[i] = CollisionType::POINT_COST;
       return result;
     }
 
@@ -294,11 +297,13 @@ CollisionResult GridCollisionChecker::inCollision(
 
       if (footprint_cost == UNKNOWN_COST && !traverse_unknown) {
         result.in_collision = true;
+        result.collision_type[i] = CollisionType::FOOTPRINT_COST;
         return result;
       }
 
       if (footprint_cost >= OCCUPIED_COST) {
         result.in_collision = true;
+        result.collision_type[i] = CollisionType::FOOTPRINT_COST;
         return result;
       }
 
@@ -316,6 +321,11 @@ CollisionResult GridCollisionChecker::inCollision(
     for (size_t i = 0; i < x.size(); ++i) {
       if (needs_swept_area_check[i]) {
         current_sequence.push_back(i);
+        // Limit sequence to maximum of 5 poses
+        if (current_sequence.size() >= 5) {
+          consecutive_sequences.push_back(current_sequence);
+          current_sequence.clear();
+        }
       } else {
         if (!current_sequence.empty()) {
           // Only add sequences with more than one pose
@@ -357,11 +367,19 @@ CollisionResult GridCollisionChecker::inCollision(
       
       if (swept_area_cost == UNKNOWN_COST && !traverse_unknown) {
         result.in_collision = true;
+        // Mark all poses in this sequence as swept area collision
+        for (size_t seq_idx : sequence) {
+          result.collision_type[seq_idx] = CollisionType::SWEPT_AREA_COST;
+        }
         return result;
       }
       
       if (swept_area_cost >= OCCUPIED_COST) {
         result.in_collision = true;
+        // Mark all poses in this sequence as swept area collision
+        for (size_t seq_idx : sequence) {
+          result.collision_type[seq_idx] = CollisionType::SWEPT_AREA_COST;
+        }
         return result;
       }
     }

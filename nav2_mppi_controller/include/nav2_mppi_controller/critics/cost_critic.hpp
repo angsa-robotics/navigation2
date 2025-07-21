@@ -20,6 +20,8 @@
 
 #include "nav2_costmap_2d/inflation_layer.hpp"
 #include "nav2_smac_planner/collision_checker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
+#include "rclcpp/time.hpp"
 
 #include "nav2_mppi_controller/critic_function.hpp"
 #include "nav2_mppi_controller/models/state.hpp"
@@ -48,6 +50,18 @@ public:
   void score(CriticData & data) override;
 
 protected:
+  /**
+   * @brief Visualize all collision footprints with different colors based on collision type
+   * @param all_collision_results Results from collision checking for all trajectories
+   * @param all_x_coords X coordinates of collision poses for all trajectories
+   * @param all_y_coords Y coordinates of collision poses for all trajectories
+   * @param all_angle_bins Angle bins of collision poses for all trajectories
+   */
+  void visualizeAllCollisionFootprints(
+    const std::vector<nav2_smac_planner::CollisionResult> & all_collision_results,
+    const std::vector<std::vector<float>> & all_x_coords,
+    const std::vector<std::vector<float>> & all_y_coords,
+    const std::vector<std::vector<float>> & all_angle_bins);
   /**
     * @brief Find the min cost of the inflation decay function for which the robot MAY be
     * in collision in any orientation
@@ -115,6 +129,13 @@ protected:
 
   unsigned int power_{0};
   bool enforce_path_inversion_{false};
+
+  // Visualization parameters
+  bool enable_collision_visualization_{true};
+  double visualization_throttle_period_{1.0}; // seconds
+  rclcpp::Time last_visualization_time_{0, 0, RCL_ROS_TIME};
+  rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr 
+    collision_footprint_pub_;
 };
 
 }  // namespace mppi::critics

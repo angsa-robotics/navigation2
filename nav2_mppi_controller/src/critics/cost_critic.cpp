@@ -14,9 +14,11 @@
 // limitations under the License.
 
 #include <cmath>
+#include <set>
 #include "nav2_mppi_controller/critics/cost_critic.hpp"
 #include "nav2_core/controller_exceptions.hpp"
 #include "nav2_costmap_2d/cost_values.hpp"
+#include "geometry_msgs/msg/point.hpp"
 
 namespace mppi::critics
 {
@@ -37,6 +39,8 @@ void CostCritic::initialize()
   getParam(inflation_layer_name_, "inflation_layer_name", std::string(""));
   getParam(trajectory_point_step_, "trajectory_point_step", 2);
   getParam(angle_quantization_bins_, "angle_quantization_bins", 72);
+  getParam(enable_collision_visualization_, "enable_collision_visualization", true);
+  getParam(visualization_throttle_period_, "visualization_throttle_period", 1.0);
   angle_bin_size_ = 2.0 * M_PI / angle_quantization_bins_;
 
   // Normalized by cost value to put in same regime as other weights
@@ -51,6 +55,13 @@ void CostCritic::initialize()
 
   collision_checker_ = std::make_unique<nav2_smac_planner::GridCollisionChecker>(
     costmap_ros_, angle_quantization_bins_, parent_.lock());
+
+  // Initialize visualization publisher if enabled
+  if (enable_collision_visualization_) {
+    collision_footprint_pub_ = parent_.lock()->create_publisher<visualization_msgs::msg::MarkerArray>(
+      "~/collision_footprints", 1);\
+    collision_footprint_pub_->on_activate();
+  }
 
   if (costmap_ros_->getUseRadius() == consider_footprint_) {
     RCLCPP_WARN(
@@ -167,6 +178,10 @@ void CostCritic::score(CriticData & data)
     costmap_ros_->getUseRadius(),
     findCircumscribedCost(costmap_ros_));
 
+  // Collect collision data for visualization
+  std::vector<nav2_smac_planner::CollisionResult> all_collision_results;
+  std::vector<std::vector<float>> all_x_coords, all_y_coords, all_angle_bins;
+
   // Batch collision checking using new vectorized function
   for (int i = 0; i < strided_traj_rows; ++i) {
     bool trajectory_collide = false;
@@ -215,6 +230,14 @@ void CostCritic::score(CriticData & data)
     auto collision_result = collision_checker_->inCollision(
       x_coords, y_coords, angle_bins, is_tracking_unknown_);
 
+    // Store collision data for visualization if enabled
+    if (enable_collision_visualization_ && collision_result.in_collision) {
+      all_collision_results.push_back(collision_result);
+      all_x_coords.push_back(x_coords);
+      all_y_coords.push_back(y_coords);
+      all_angle_bins.push_back(angle_bins);
+    }
+
     if (collision_result.in_collision) {
       traj_cost = collision_cost_;
       trajectory_collide = true;
@@ -235,6 +258,11 @@ void CostCritic::score(CriticData & data)
     all_trajectories_collide &= trajectory_collide;
   }
 
+  // Visualize all collision footprints at once if enabled
+  if (enable_collision_visualization_ && !all_collision_results.empty()) {
+    visualizeAllCollisionFootprints(all_collision_results, all_x_coords, all_y_coords, all_angle_bins);
+  }
+
   if (power_ > 1u) {
     data.costs += (repulsive_cost *
       (weight_ / static_cast<float>(strided_traj_cols))).pow(power_);
@@ -243,6 +271,135 @@ void CostCritic::score(CriticData & data)
   }
 
   data.fail_flag = all_trajectories_collide;
+}
+
+void CostCritic::visualizeAllCollisionFootprints(
+  const std::vector<nav2_smac_planner::CollisionResult> & all_collision_results,
+  const std::vector<std::vector<float>> & all_x_coords,
+  const std::vector<std::vector<float>> & all_y_coords,
+  const std::vector<std::vector<float>> & all_angle_bins)
+{
+  // Throttle visualization
+  auto current_time = parent_.lock()->get_clock()->now();
+  if ((current_time - last_visualization_time_).seconds() < visualization_throttle_period_) {
+    return;
+  }
+
+  if (!collision_footprint_pub_ || !collision_footprint_pub_->is_activated()) {
+    return;
+  }
+
+  visualization_msgs::msg::MarkerArray marker_array;
+  int marker_id = 0;
+  bool has_collision_markers = false;
+
+  // Track which collision types we've already visualized
+  std::set<nav2_smac_planner::CollisionType> visualized_types;
+
+  // Clear previous markers
+  visualization_msgs::msg::Marker delete_marker;
+  delete_marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+  delete_marker.header.stamp = current_time;
+  delete_marker.action = visualization_msgs::msg::Marker::DELETEALL;
+  marker_array.markers.push_back(delete_marker);
+
+  // Iterate through all trajectory results
+  for (size_t traj_idx = 0; traj_idx < all_collision_results.size(); ++traj_idx) {
+    const auto & collision_result = all_collision_results[traj_idx];
+    const auto & x_coords = all_x_coords[traj_idx];
+    const auto & y_coords = all_y_coords[traj_idx];
+    const auto & angle_bins = all_angle_bins[traj_idx];
+
+    for (size_t i = 0; i < x_coords.size(); ++i) {
+      nav2_smac_planner::CollisionType collision_type = collision_result.collision_type[i];
+      
+      // Skip poses with no collision
+      if (collision_type == nav2_smac_planner::CollisionType::NONE) {
+        continue;
+      }
+
+      // Skip if we've already visualized this collision type
+      if (visualized_types.find(collision_type) != visualized_types.end()) {
+        continue;
+      }
+
+      // Mark this collision type as visualized
+      visualized_types.insert(collision_type);
+
+      has_collision_markers = true;
+
+      // Convert map coordinates to world coordinates
+      double wx, wy;
+      costmap_ros_->getCostmap()->mapToWorld(
+        static_cast<double>(x_coords[i]), static_cast<double>(y_coords[i]), wx, wy);
+
+      // Get oriented footprint from collision checker
+      float angle = angle_bins[i] * angle_bin_size_;
+      
+      // Use the unoriented footprint and apply rotation manually
+      const nav2_costmap_2d::Footprint & footprint = costmap_ros_->getRobotFootprint();
+
+      // Create footprint marker
+      visualization_msgs::msg::Marker footprint_marker;
+      footprint_marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+      footprint_marker.header.stamp = current_time;
+      footprint_marker.id = marker_id++;
+      footprint_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+      footprint_marker.action = visualization_msgs::msg::Marker::ADD;
+      footprint_marker.scale.x = 0.02;  // Line width
+
+      // Set namespace and color based on collision type
+      switch (collision_type) {
+        case nav2_smac_planner::CollisionType::POINT_COST:
+          footprint_marker.ns = "collision_footprints_point_cost";
+          footprint_marker.color.r = 1.0;
+          footprint_marker.color.g = 0.0;
+          footprint_marker.color.b = 0.0;
+          footprint_marker.color.a = 1.0;
+          break;
+        case nav2_smac_planner::CollisionType::FOOTPRINT_COST:
+          footprint_marker.ns = "collision_footprints_footprint_cost";
+          footprint_marker.color.r = 0.0;
+          footprint_marker.color.g = 1.0;
+          footprint_marker.color.b = 0.0;
+          footprint_marker.color.a = 1.0;
+          break;
+        case nav2_smac_planner::CollisionType::SWEPT_AREA_COST:
+          footprint_marker.ns = "collision_footprints_swept_area_cost";
+          footprint_marker.color.r = 0.0;
+          footprint_marker.color.g = 0.0;
+          footprint_marker.color.b = 1.0;
+          footprint_marker.color.a = 1.0;
+          break;
+        default:
+          continue; // Skip unknown types
+      }
+
+      // Convert footprint to marker points
+      for (const auto & point : footprint) {
+        geometry_msgs::msg::Point marker_point;
+        // Apply rotation and translation
+        marker_point.x = wx + point.x * cos(angle) - point.y * sin(angle);
+        marker_point.y = wy + point.x * sin(angle) + point.y * cos(angle);
+        marker_point.z = 0.1;
+        footprint_marker.points.push_back(marker_point);
+      }
+
+      // Close the footprint by adding the first point again
+      if (!footprint_marker.points.empty()) {
+        footprint_marker.points.push_back(footprint_marker.points[0]);
+      }
+
+      marker_array.markers.push_back(footprint_marker);
+    }
+  }
+
+  collision_footprint_pub_->publish(marker_array);
+  
+  // Only update the visualization time if we actually published collision footprints
+  if (has_collision_markers) {
+    last_visualization_time_ = current_time;
+  }
 }
 
 }  // namespace mppi::critics

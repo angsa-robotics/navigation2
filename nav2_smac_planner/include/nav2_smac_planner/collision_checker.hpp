@@ -30,10 +30,18 @@ namespace nav2_smac_planner
  * @struct CollisionResult
  * @brief Result structure for batch collision checking
  */
+enum class CollisionType {
+  NONE = 0,
+  POINT_COST = 1,
+  FOOTPRINT_COST = 2,
+  SWEPT_AREA_COST = 3
+};
+
 struct CollisionResult {
   bool in_collision;
   std::vector<float> center_cost;
   std::vector<float> footprint_cost;
+  std::vector<CollisionType> collision_type;  // Type of collision for each pose
 };
 
 /**
