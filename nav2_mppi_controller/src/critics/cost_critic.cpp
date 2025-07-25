@@ -53,7 +53,7 @@ void CostCritic::initialize()
     };
   parameters_handler_->addParamCallback(name_ + ".cost_weight", weightDynamicCb);
 
-  collision_checker_ = std::make_unique<nav2_smac_planner::GridCollisionChecker>(
+  collision_checker_ = std::make_unique<nav2_mppi_controller::MPPICollisionChecker>(
     costmap_ros_, angle_quantization_bins_, parent_.lock());
 
   // Initialize visualization publisher if enabled
@@ -85,52 +85,6 @@ void CostCritic::initialize()
     "Critic will collision check based on %s cost.",
     power_, critical_cost_, weight_, consider_footprint_ ?
     "footprint" : "circular");
-}
-
-float CostCritic::findCircumscribedCost(
-  std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap)
-{
-  double result = -1.0;
-  const double circum_radius = costmap->getLayeredCostmap()->getCircumscribedRadius();
-  if (static_cast<float>(circum_radius) == circumscribed_radius_) {
-    // early return if footprint size is unchanged
-    return circumscribed_cost_;
-  }
-
-  // check if the costmap has an inflation layer
-  const auto inflation_layer = nav2_costmap_2d::InflationLayer::getInflationLayer(
-    costmap,
-    inflation_layer_name_);
-  if (inflation_layer != nullptr) {
-    const double resolution = costmap->getCostmap()->getResolution();
-    double inflation_radius = inflation_layer->getInflationRadius();
-    if (inflation_radius < circum_radius) {
-      RCLCPP_ERROR(
-        rclcpp::get_logger("computeCircumscribedCost"),
-        "The inflation radius (%f) is smaller than the circumscribed radius (%f) "
-        "If this is an SE2-collision checking plugin, it cannot use costmap potential "
-        "field to speed up collision checking by only checking the full footprint "
-        "when robot is within possibly-inscribed radius of an obstacle. This may "
-        "significantly slow down planning times!",
-        inflation_radius, circum_radius);
-      result = 0.0;
-      return result;
-    }
-    result = inflation_layer->computeCost(circum_radius / resolution);
-  } else {
-    RCLCPP_WARN(
-      logger_,
-      "No inflation layer found in costmap configuration. "
-      "If this is an SE2-collision checking plugin, it cannot use costmap potential "
-      "field to speed up collision checking by only checking the full footprint "
-      "when robot is within possibly-inscribed radius of an obstacle. This may "
-      "significantly slow down planning times and not avoid anything but absolute collisions!");
-  }
-
-  circumscribed_radius_ = static_cast<float>(circum_radius);
-  circumscribed_cost_ = static_cast<float>(result);
-
-  return circumscribed_cost_;
 }
 
 void CostCritic::score(CriticData & data)
@@ -176,11 +130,11 @@ void CostCritic::score(CriticData & data)
   collision_checker_->setFootprint(
     costmap_ros_->getRobotFootprint(),
     costmap_ros_->getUseRadius(),
-    findCircumscribedCost(costmap_ros_));
+    inflation_layer_name_);
 
   // Collect collision data for visualization
-  std::vector<nav2_smac_planner::CollisionResult> all_collision_results;
-  std::vector<std::vector<float>> all_x_coords, all_y_coords, all_angle_bins;
+  std::vector<nav2_mppi_controller::CollisionResult> all_collision_results;
+  std::vector<std::vector<float>> all_x_coords, all_y_coords, all_yaw_angles;
 
   // Batch collision checking using new vectorized function
   for (int i = 0; i < strided_traj_rows; ++i) {
@@ -188,12 +142,12 @@ void CostCritic::score(CriticData & data)
     float & traj_cost = repulsive_cost(i);
 
     // Prepare vectors for batch collision checking
-    std::vector<float> x_coords, y_coords, angle_bins;
+    std::vector<float> x_coords, y_coords, yaw_angles;
     x_coords.reserve(strided_traj_cols);
     y_coords.reserve(strided_traj_cols);
-    angle_bins.reserve(strided_traj_cols);
+    yaw_angles.reserve(strided_traj_cols);
 
-    // Convert world coordinates to map coordinates and prepare angle bins
+    // Convert world coordinates to map coordinates and collect yaw angles
     for (int j = 0; j < strided_traj_cols; j++) {
       float Tx = traj_x(i, j);
       float Ty = traj_y(i, j);
@@ -206,19 +160,9 @@ void CostCritic::score(CriticData & data)
         break;
       }
 
-      // Get the corresponding angle bin for the trajectory point
-      double orientation_bin = std::round(traj_yaw(i, j) / angle_bin_size_);
-      while (orientation_bin < 0.0) {
-        orientation_bin += static_cast<double>(angle_quantization_bins_);
-      }
-      // This is needed to handle precision issues
-      if (orientation_bin >= static_cast<double>(angle_quantization_bins_)) {
-        orientation_bin -= static_cast<double>(angle_quantization_bins_);
-      }
-
       x_coords.push_back(static_cast<float>(x_i));
       y_coords.push_back(static_cast<float>(y_i));
-      angle_bins.push_back(static_cast<float>(orientation_bin));
+      yaw_angles.push_back(traj_yaw(i, j));
     }
 
     // Skip batch collision checking if trajectory already marked as colliding
@@ -226,16 +170,16 @@ void CostCritic::score(CriticData & data)
       continue;
     }
 
-    // Perform batch collision checking
+    // Perform batch collision checking using yaw angles
     auto collision_result = collision_checker_->inCollision(
-      x_coords, y_coords, angle_bins, is_tracking_unknown_);
+      x_coords, y_coords, yaw_angles, is_tracking_unknown_);
 
     // Store collision data for visualization if enabled
     if (enable_collision_visualization_ && collision_result.in_collision) {
       all_collision_results.push_back(collision_result);
       all_x_coords.push_back(x_coords);
       all_y_coords.push_back(y_coords);
-      all_angle_bins.push_back(angle_bins);
+      all_yaw_angles.push_back(yaw_angles);  // Store yaw angles for visualization
     }
 
     if (collision_result.in_collision) {
@@ -260,7 +204,7 @@ void CostCritic::score(CriticData & data)
 
   // Visualize all collision footprints at once if enabled
   if (enable_collision_visualization_ && !all_collision_results.empty()) {
-    visualizeAllCollisionFootprints(all_collision_results, all_x_coords, all_y_coords, all_angle_bins);
+    visualizeAllCollisionFootprints(all_collision_results, all_x_coords, all_y_coords, all_yaw_angles);
   }
 
   if (power_ > 1u) {
@@ -274,10 +218,10 @@ void CostCritic::score(CriticData & data)
 }
 
 void CostCritic::visualizeAllCollisionFootprints(
-  const std::vector<nav2_smac_planner::CollisionResult> & all_collision_results,
+  const std::vector<nav2_mppi_controller::CollisionResult> & all_collision_results,
   const std::vector<std::vector<float>> & all_x_coords,
   const std::vector<std::vector<float>> & all_y_coords,
-  const std::vector<std::vector<float>> & all_angle_bins)
+  const std::vector<std::vector<float>> & all_yaw_angles)
 {
   // Throttle visualization
   auto current_time = parent_.lock()->get_clock()->now();
@@ -294,7 +238,7 @@ void CostCritic::visualizeAllCollisionFootprints(
   bool has_collision_markers = false;
 
   // Track which collision types we've already visualized
-  std::set<nav2_smac_planner::CollisionType> visualized_types;
+  std::set<nav2_mppi_controller::CollisionType> visualized_types;
 
   // Clear previous markers
   visualization_msgs::msg::Marker delete_marker;
@@ -308,13 +252,13 @@ void CostCritic::visualizeAllCollisionFootprints(
     const auto & collision_result = all_collision_results[traj_idx];
     const auto & x_coords = all_x_coords[traj_idx];
     const auto & y_coords = all_y_coords[traj_idx];
-    const auto & angle_bins = all_angle_bins[traj_idx];
+    const auto & yaw_angles = all_yaw_angles[traj_idx];
 
     for (size_t i = 0; i < x_coords.size(); ++i) {
-      nav2_smac_planner::CollisionType collision_type = collision_result.collision_type[i];
+      nav2_mppi_controller::CollisionType collision_type = collision_result.collision_type[i];
       
       // Skip poses with no collision
-      if (collision_type == nav2_smac_planner::CollisionType::NONE) {
+      if (collision_type == nav2_mppi_controller::CollisionType::NONE) {
         continue;
       }
 
@@ -333,8 +277,8 @@ void CostCritic::visualizeAllCollisionFootprints(
       costmap_ros_->getCostmap()->mapToWorld(
         static_cast<double>(x_coords[i]), static_cast<double>(y_coords[i]), wx, wy);
 
-      // Get oriented footprint from collision checker
-      float angle = angle_bins[i] * angle_bin_size_;
+      // Convert angle bin back to yaw angle for visualization
+      float angle = yaw_angles[i] * angle_bin_size_;
       
       // Use the unoriented footprint and apply rotation manually
       const nav2_costmap_2d::Footprint & footprint = costmap_ros_->getRobotFootprint();
@@ -350,21 +294,21 @@ void CostCritic::visualizeAllCollisionFootprints(
 
       // Set namespace and color based on collision type
       switch (collision_type) {
-        case nav2_smac_planner::CollisionType::POINT_COST:
+        case nav2_mppi_controller::CollisionType::POINT_COST:
           footprint_marker.ns = "collision_footprints_point_cost";
           footprint_marker.color.r = 1.0;
           footprint_marker.color.g = 0.0;
           footprint_marker.color.b = 0.0;
           footprint_marker.color.a = 1.0;
           break;
-        case nav2_smac_planner::CollisionType::FOOTPRINT_COST:
+        case nav2_mppi_controller::CollisionType::FOOTPRINT_COST:
           footprint_marker.ns = "collision_footprints_footprint_cost";
           footprint_marker.color.r = 0.0;
           footprint_marker.color.g = 1.0;
           footprint_marker.color.b = 0.0;
           footprint_marker.color.a = 1.0;
           break;
-        case nav2_smac_planner::CollisionType::SWEPT_AREA_COST:
+        case nav2_mppi_controller::CollisionType::SWEPT_AREA_COST:
           footprint_marker.ns = "collision_footprints_swept_area_cost";
           footprint_marker.color.r = 0.0;
           footprint_marker.color.g = 0.0;

@@ -19,7 +19,7 @@
 #include <string>
 
 #include "nav2_costmap_2d/inflation_layer.hpp"
-#include "nav2_smac_planner/collision_checker.hpp"
+#include "nav2_mppi_controller/collision_checker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "rclcpp/time.hpp"
 
@@ -55,21 +55,13 @@ protected:
    * @param all_collision_results Results from collision checking for all trajectories
    * @param all_x_coords X coordinates of collision poses for all trajectories
    * @param all_y_coords Y coordinates of collision poses for all trajectories
-   * @param all_angle_bins Angle bins of collision poses for all trajectories
+   * @param all_yaw_angles Yaw angles of collision poses for all trajectories
    */
   void visualizeAllCollisionFootprints(
-    const std::vector<nav2_smac_planner::CollisionResult> & all_collision_results,
+    const std::vector<nav2_mppi_controller::CollisionResult> & all_collision_results,
     const std::vector<std::vector<float>> & all_x_coords,
     const std::vector<std::vector<float>> & all_y_coords,
-    const std::vector<std::vector<float>> & all_angle_bins);
-  /**
-    * @brief Find the min cost of the inflation decay function for which the robot MAY be
-    * in collision in any orientation
-    * @param costmap Costmap2DROS to get minimum inscribed cost (e.g. 128 in inflation layer documentation)
-    * @return double circumscribed cost, any higher than this and need to do full footprint collision checking
-    * since some element of the robot could be in collision
-    */
-  inline float findCircumscribedCost(std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap);
+    const std::vector<std::vector<float>> & all_yaw_angles);
 
   /**
     * @brief An implementation of worldToMap fully using floats
@@ -105,14 +97,12 @@ protected:
     return my * size_x_ + mx;
   }
 
-  std::unique_ptr<nav2_smac_planner::GridCollisionChecker> collision_checker_;
+  std::unique_ptr<nav2_mppi_controller::MPPICollisionChecker> collision_checker_;
   float possible_collision_cost_;
 
 
   bool consider_footprint_{true};
   bool is_tracking_unknown_{true};
-  float circumscribed_radius_{0.0f};
-  float circumscribed_cost_{0.0f};
   float collision_cost_{0.0f};
   float critical_cost_{0.0f};
   unsigned int near_collision_cost_{253};

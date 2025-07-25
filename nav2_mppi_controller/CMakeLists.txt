@@ -7,7 +7,6 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_core REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
-find_package(nav2_smac_planner REQUIRED)
 find_package(nav2_util REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
@@ -39,6 +38,7 @@ endif()
 
 add_library(mppi_controller SHARED
   src/controller.cpp
+  src/collision_checker.cpp
   src/critic_manager.cpp
   src/noise_generator.cpp
   src/optimizer.cpp
@@ -92,7 +92,6 @@ target_link_libraries(mppi_critics PUBLIC
   nav2_core::nav2_core
   nav2_costmap_2d::layers
   nav2_costmap_2d::nav2_costmap_2d_core
-  nav2_smac_planner::nav2_smac_planner
   ${nav_msgs_TARGETS}
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
