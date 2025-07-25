@@ -322,6 +322,12 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
     i++;
   }
 
+  if (waypoint_statuses.empty()) {
+    bt_action_server_->setInternalError(ActionT::Result::UNKNOWN,
+      "No valid goal poses provided.");
+    return false;
+  }
+
   RCLCPP_INFO(
     logger_, "Begin navigating from current location through %zu poses to (%.2f, %.2f)",
     waypoint_statuses.size(), waypoint_statuses.back().waypoint_pose.pose.position.x,
