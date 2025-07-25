@@ -34,6 +34,7 @@
 #include "rviz_common/ros_integration/ros_node_abstraction_iface.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/create_timer_ros.h"
@@ -103,6 +104,7 @@ private:
   void startWaypointFollowing(std::vector<geometry_msgs::msg::PoseStamped> poses);
   void startNavigation(geometry_msgs::msg::PoseStamped);
   void startNavThroughPoses(nav_msgs::msg::Goals poses);
+  void setInitialPose(const geometry_msgs::msg::PoseStamped & pose);
   using NavigationGoalHandle =
     rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>;
   using WaypointFollowerGoalHandle =
@@ -222,6 +224,9 @@ private:
 
   // Waypoint navigation visual markers publisher
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr wp_navigation_markers_pub_;
+
+  // Initial pose publisher for localization
+  rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_pub_;
 };
 
 class InitialThread : public QThread

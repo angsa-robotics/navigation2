@@ -594,6 +594,11 @@ Nav2Panel::Nav2Panel(QWidget * parent)
     "waypoints",
     rclcpp::QoS(1).transient_local());
 
+  initial_pose_pub_ =
+    client_node_->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
+    "initialpose",
+    rclcpp::QoS(1).transient_local());
+
   QObject::connect(
     &GoalUpdater, SIGNAL(updateGoal(double,double,double,QString)),                 // NOLINT
     this, SLOT(onNewGoal(double,double,double,QString)));  // NOLINT
@@ -873,11 +878,11 @@ Nav2Panel::onPause()
     std::bind(
       &nav2_lifecycle_manager::LifecycleManagerClient::pause,
       client_nav_.get(), std::placeholders::_1), server_timeout_);
-  QFuture<void> futureLoc =
-    QtConcurrent::run(
-    std::bind(
-      &nav2_lifecycle_manager::LifecycleManagerClient::pause,
-      client_loc_.get(), std::placeholders::_1), server_timeout_);
+  // QFuture<void> futureLoc =
+  //   QtConcurrent::run(
+  //   std::bind(
+  //     &nav2_lifecycle_manager::LifecycleManagerClient::pause,
+  //     client_loc_.get(), std::placeholders::_1), server_timeout_);
 }
 
 void
@@ -888,11 +893,11 @@ Nav2Panel::onResume()
     std::bind(
       &nav2_lifecycle_manager::LifecycleManagerClient::resume,
       client_nav_.get(), std::placeholders::_1), server_timeout_);
-  QFuture<void> futureLoc =
-    QtConcurrent::run(
-    std::bind(
-      &nav2_lifecycle_manager::LifecycleManagerClient::resume,
-      client_loc_.get(), std::placeholders::_1), server_timeout_);
+  // QFuture<void> futureLoc =
+  //   QtConcurrent::run(
+  //   std::bind(
+  //     &nav2_lifecycle_manager::LifecycleManagerClient::resume,
+  //     client_loc_.get(), std::placeholders::_1), server_timeout_);
 }
 
 void
@@ -903,11 +908,11 @@ Nav2Panel::onStartup()
     std::bind(
       &nav2_lifecycle_manager::LifecycleManagerClient::startup,
       client_nav_.get(), std::placeholders::_1), server_timeout_);
-  QFuture<void> futureLoc =
-    QtConcurrent::run(
-    std::bind(
-      &nav2_lifecycle_manager::LifecycleManagerClient::startup,
-      client_loc_.get(), std::placeholders::_1), server_timeout_);
+  // QFuture<void> futureLoc =
+  //   QtConcurrent::run(
+  //   std::bind(
+  //     &nav2_lifecycle_manager::LifecycleManagerClient::startup,
+  //     client_loc_.get(), std::placeholders::_1), server_timeout_);
 }
 
 void
@@ -918,11 +923,11 @@ Nav2Panel::onShutdown()
     std::bind(
       &nav2_lifecycle_manager::LifecycleManagerClient::reset,
       client_nav_.get(), std::placeholders::_1), server_timeout_);
-  QFuture<void> futureLoc =
-    QtConcurrent::run(
-    std::bind(
-      &nav2_lifecycle_manager::LifecycleManagerClient::reset,
-      client_loc_.get(), std::placeholders::_1), server_timeout_);
+  // QFuture<void> futureLoc =
+  //   QtConcurrent::run(
+  //   std::bind(
+  //     &nav2_lifecycle_manager::LifecycleManagerClient::reset,
+  //     client_loc_.get(), std::placeholders::_1), server_timeout_);
   timer_.stop();
 }
 
@@ -1254,6 +1259,29 @@ Nav2Panel::startWaypointFollowing(std::vector<geometry_msgs::msg::PoseStamped> p
 }
 
 void
+Nav2Panel::setInitialPose(const geometry_msgs::msg::PoseStamped & pose)
+{
+  auto initial_pose_msg = geometry_msgs::msg::PoseWithCovarianceStamped();
+  initial_pose_msg.header = pose.header;
+  initial_pose_msg.pose.pose = pose.pose;
+  
+  // Set a small covariance to indicate some uncertainty in the pose
+  for (int i = 0; i < 36; i++) {
+    initial_pose_msg.pose.covariance[i] = 0.0;
+  }
+  initial_pose_msg.pose.covariance[0] = 0.25;  // x covariance
+  initial_pose_msg.pose.covariance[7] = 0.25;  // y covariance
+  initial_pose_msg.pose.covariance[35] = 0.068; // yaw covariance
+
+  RCLCPP_INFO(
+    client_node_->get_logger(),
+    "Setting initial pose at (%.2f, %.2f)",
+    pose.pose.position.x, pose.pose.position.y);
+  
+  initial_pose_pub_->publish(initial_pose_msg);
+}
+
+void
 Nav2Panel::startNavThroughPoses(nav_msgs::msg::Goals poses)
 {
   auto is_action_server_ready =
@@ -1263,6 +1291,17 @@ Nav2Panel::startNavThroughPoses(nav_msgs::msg::Goals poses)
       client_node_->get_logger(), "navigate_through_poses action server is not available."
       " Is the initial pose set?");
     return;
+  }
+
+  // Set initial pose to the first pose for localization
+  if (!poses.goals.empty()) {
+    RCLCPP_INFO(
+      client_node_->get_logger(),
+      "Setting initial pose to first waypoint for localization");
+    setInitialPose(poses.goals[0]);
+    
+    // Give some time for the localization to process the initial pose
+    rclcpp::sleep_for(std::chrono::milliseconds(500));
   }
 
   nav_through_poses_goal_.poses = poses;
