@@ -191,7 +191,7 @@ protected:
   float possible_collision_cost_{-1};
   float circumscribed_radius_{-1.0f};
   float circumscribed_cost_{-1.0f};
-  rclcpp::Logger logger_{rclcpp::get_logger("SmacPlannerCollisionChecker")};
+  rclcpp::Logger logger_{rclcpp::get_logger("MPPICollisionChecker")};
   rclcpp::Clock::SharedPtr clock_;
 };
 
