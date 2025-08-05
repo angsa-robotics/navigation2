@@ -140,6 +140,7 @@ double FootprintCollisionChecker<CostmapT>::footprintCost(
         }
         max_cost = std::max(max_cost, cell_cost);
       }
+
     }
   }
 
