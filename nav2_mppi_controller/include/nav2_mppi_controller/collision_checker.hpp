@@ -48,7 +48,6 @@ struct CollisionResult
   bool in_collision;
   std::vector<float> center_cost;
   std::vector<float> footprint_cost;
-  std::vector<CollisionType> collision_type;  // Type of collision for each pose
 };
 
 /**

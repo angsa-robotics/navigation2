@@ -163,10 +163,12 @@ void CostCritic::score(CriticData & data)
       trajectory_collide = true;
     } else {
       // Let near-collision trajectory points be punished severely
-      // Note that we collision check based on the footprint actual,
-      // and score based on the footprint cost for more accurate trajectory evaluation
       for (size_t k = 0; k < collision_result.footprint_cost.size(); ++k) {
-        float cost = collision_result.footprint_cost[k];
+        // For optimization purposes, we don't always have the footprint cost
+        // but we still use it when available to staw away from collision more conservatively
+        float cost = collision_result.footprint_cost[k] != -1.0f ? 
+          collision_result.footprint_cost[k] : collision_result.center_cost[k];
+
         if (cost >= static_cast<float>(near_collision_cost_)) {
           traj_cost += critical_cost_;
         } else if (!near_goal) {  // Generally prefer trajectories further from obstacles

@@ -80,9 +80,8 @@ CollisionResult MPPICollisionChecker::inCollision(
   }
 
   // Initialize result vectors
-  result.center_cost.resize(x.size(), 0.0f);
-  result.footprint_cost.resize(x.size(), 0.0f);
-  result.collision_type.resize(x.size(), CollisionType::NONE);
+  result.center_cost.resize(x.size(), -1.0f);
+  result.footprint_cost.resize(x.size(), -1.0f);
 
   // Step 1: Check all poses for bounds and get center costs
   std::vector<bool> needs_footprint_check(x.size(), false);
@@ -104,13 +103,11 @@ CollisionResult MPPICollisionChecker::inCollision(
 
     if (current_center_cost == UNKNOWN_COST && !traverse_unknown) {
       result.in_collision = true;
-      result.collision_type[i] = CollisionType::POINT_COST;
       return result;
     }
 
     if (current_center_cost >= INSCRIBED_COST) {
       result.in_collision = true;
-      result.collision_type[i] = CollisionType::POINT_COST;
       return result;
     }
 
@@ -119,145 +116,129 @@ CollisionResult MPPICollisionChecker::inCollision(
       // Skip if center cost is below collision threshold
       if (current_center_cost >= possible_collision_cost_ || possible_collision_cost_ <= 0.0f) {
         needs_footprint_check[i] = true;
-      } else {
-        // If center cost is below threshold, use center cost as footprint cost
-        result.footprint_cost[i] = current_center_cost;
       }
-    } else {
-      // For radius-based checking, we still need to calculate footprint cost
-      // even though we use center cost for collision detection
-      result.footprint_cost[i] = current_center_cost;
     }
   }
 
-  // Step 2: If using footprint, check footprint costs for all poses
-  if (!footprint_is_radius_) {
-    std::vector<bool> needs_swept_area_check(x.size(), false);
-    // Cache computed footprints to avoid recomputation in Step 4
-    std::vector<nav2_costmap_2d::Footprint> cached_footprints(x.size());
+  if (footprint_is_radius_) {
+    return result;  // No further checks needed for radius-based checking
+  }
 
-    for (size_t i = 0; i < x.size(); ++i) {
-      // Skip poses that don't need footprint checking
-      if (!needs_footprint_check[i]) {
-        continue;
-      }
+  // Step 2: If using footprint, check footprint costs for poses that need it
+  std::vector<bool> needs_swept_area_check(x.size(), false);
+  // Cache computed footprints to avoid recomputation in Step 4
+  std::vector<nav2_costmap_2d::Footprint> cached_footprints(x.size());
 
-      // Transform footprint to current orientation and world position
-      double wx, wy;
-      costmap_->mapToWorld(static_cast<double>(x[i]), static_cast<double>(y[i]), wx, wy);
-
-      // Transform the footprint to the given orientation
-      nav2_costmap_2d::Footprint oriented_footprint = transformFootprint(unoriented_footprint_,
-          yaw[i]);
-
-      // Translate to world position
-      nav2_costmap_2d::Footprint current_footprint;
-      current_footprint.reserve(oriented_footprint.size());
-      geometry_msgs::msg::Point new_pt;
-      for (unsigned int j = 0; j < oriented_footprint.size(); ++j) {
-        new_pt.x = wx + oriented_footprint[j].x;
-        new_pt.y = wy + oriented_footprint[j].y;
-        current_footprint.push_back(new_pt);
-      }
-
-      // Cache the computed footprint for potential reuse in Step 4
-      cached_footprints[i] = current_footprint;
-
-      // Check footprint perimeter
-      float footprint_cost = static_cast<float>(footprintCost(current_footprint, false));
-
-      // Store footprint cost in result
-      result.footprint_cost[i] = footprint_cost;
-
-      if (footprint_cost == UNKNOWN_COST && !traverse_unknown) {
-        result.in_collision = true;
-        result.collision_type[i] = CollisionType::FOOTPRINT_COST;
-        return result;
-      }
-
-      if (footprint_cost >= OCCUPIED_COST) {
-        result.in_collision = true;
-        result.collision_type[i] = CollisionType::FOOTPRINT_COST;
-        return result;
-      }
-
-      // Mark for swept area checking if footprint cost is INSCRIBED_COST
-      if (footprint_cost == INSCRIBED_COST) {
-        needs_swept_area_check[i] = true;
-      }
+  for (size_t i = 0; i < x.size(); ++i) {
+    // Skip poses that don't need footprint checking
+    if (!needs_footprint_check[i]) {
+      continue;
     }
 
-    // Step 3: Check swept area for consecutive poses with footprint cost INSCRIBED_COST
-    // Find consecutive sequences of poses that need swept area checking
-    std::vector<std::vector<size_t>> consecutive_sequences;
-    std::vector<size_t> current_sequence;
+    // Transform footprint to current orientation and world position
+    double wx, wy;
+    costmap_->mapToWorld(static_cast<double>(x[i]), static_cast<double>(y[i]), wx, wy);
 
-    for (size_t i = 0; i < x.size(); ++i) {
-      if (needs_swept_area_check[i]) {
-        current_sequence.push_back(i);
-        // Limit sequence to maximum of 5 poses
-        if (current_sequence.size() >= 5) {
-          consecutive_sequences.push_back(current_sequence);
-          current_sequence.clear();
-        }
-      } else {
-        if (!current_sequence.empty()) {
-          // Only add sequences with more than one pose
-          if (current_sequence.size() > 1) {
-            consecutive_sequences.push_back(current_sequence);
-          }
-          current_sequence.clear();
-        }
-      }
+    // Transform the footprint to the given orientation
+    nav2_costmap_2d::Footprint oriented_footprint = transformFootprint(unoriented_footprint_,
+        yaw[i]);
+
+    // Translate to world position
+    nav2_costmap_2d::Footprint current_footprint;
+    current_footprint.reserve(oriented_footprint.size());
+    geometry_msgs::msg::Point new_pt;
+    for (unsigned int j = 0; j < oriented_footprint.size(); ++j) {
+      new_pt.x = wx + oriented_footprint[j].x;
+      new_pt.y = wy + oriented_footprint[j].y;
+      current_footprint.push_back(new_pt);
     }
 
-    // Don't forget the last sequence if it ends at the last pose
-    if (!current_sequence.empty()) {
-      // Only add sequences with more than one pose
-      if (current_sequence.size() > 1) {
+    // Cache the computed footprint for potential reuse in Step 4
+    cached_footprints[i] = current_footprint;
+
+    // Check footprint perimeter
+    float footprint_cost = static_cast<float>(footprintCost(current_footprint, false));
+
+    // Store footprint cost in result
+    result.footprint_cost[i] = footprint_cost;
+
+    if (footprint_cost == UNKNOWN_COST && !traverse_unknown) {
+      result.in_collision = true;
+      return result;
+    }
+
+    if (footprint_cost >= OCCUPIED_COST) {
+      result.in_collision = true;
+      return result;
+    }
+
+    // Mark for swept area checking if footprint cost is INSCRIBED_COST
+    if (footprint_cost == INSCRIBED_COST) {
+      needs_swept_area_check[i] = true;
+    }
+  }
+
+  // Step 3: Check swept area for consecutive poses with footprint cost INSCRIBED_COST
+  // Find consecutive sequences of poses that need swept area checking
+  std::vector<std::vector<size_t>> consecutive_sequences;
+  std::vector<size_t> current_sequence;
+
+  for (size_t i = 0; i < x.size(); ++i) {
+    if (needs_swept_area_check[i]) {
+      current_sequence.push_back(i);
+      // Limit sequence to maximum of 5 poses to avoid an unprecise swept area check
+      if (current_sequence.size() >= 5) {
         consecutive_sequences.push_back(current_sequence);
+        current_sequence.clear();
+      }
+    } else {
+      if (!current_sequence.empty()) {
+        // Only add sequences with more than one pose
+        if (current_sequence.size() > 1) {
+          consecutive_sequences.push_back(current_sequence);
+        }
+        current_sequence.clear();
+      }
+    }
+  }
+
+  // Don't forget the last sequence if it ends at the last pose
+  if (!current_sequence.empty()) {
+    // Only add sequences with more than one pose
+    if (current_sequence.size() > 1) {
+      consecutive_sequences.push_back(current_sequence);
+    }
+  }
+
+  // Step 4: Check swept area using convex hull for each consecutive sequence
+  for (const auto & sequence : consecutive_sequences) {
+    // Collect all footprint points from consecutive poses using cached footprints
+    std::vector<geometry_msgs::msg::Point> all_points;
+
+    for (size_t seq_idx : sequence) {
+      // Use cached footprint instead of recomputing
+      const nav2_costmap_2d::Footprint & current_footprint = cached_footprints[seq_idx];
+
+      for (const auto & footprint_pt : current_footprint) {
+        all_points.push_back(footprint_pt);
       }
     }
 
-    // Step 4: Check swept area using convex hull for each consecutive sequence
-    for (const auto & sequence : consecutive_sequences) {
-      // Collect all footprint points from consecutive poses using cached footprints
-      std::vector<geometry_msgs::msg::Point> all_points;
+    // Create convex hull from all collected points
+    nav2_costmap_2d::Footprint convex_hull = createConvexHull(all_points);
 
-      for (size_t seq_idx : sequence) {
-        // Use cached footprint instead of recomputing
-        const nav2_costmap_2d::Footprint & current_footprint = cached_footprints[seq_idx];
+    // Check swept area cost using full area checking
+    float swept_area_cost = static_cast<float>(footprintCost(convex_hull, true));
 
-        for (const auto & footprint_pt : current_footprint) {
-          all_points.push_back(footprint_pt);
-        }
-      }
-
-      // Create convex hull from all collected points
-      nav2_costmap_2d::Footprint convex_hull = createConvexHull(all_points);
-
-      // Check swept area cost using full area checking
-      float swept_area_cost = static_cast<float>(footprintCost(convex_hull, true));
-
-      if (swept_area_cost == UNKNOWN_COST && !traverse_unknown) {
-        result.in_collision = true;
-        // Mark all poses in this sequence as swept area collision
-        for (size_t seq_idx : sequence) {
-          result.collision_type[seq_idx] = CollisionType::SWEPT_AREA_COST;
-        }
-        return result;
-      }
-
-      if (swept_area_cost >= OCCUPIED_COST) {
-        result.in_collision = true;
-        // Mark all poses in this sequence as swept area collision
-        for (size_t seq_idx : sequence) {
-          result.collision_type[seq_idx] = CollisionType::SWEPT_AREA_COST;
-        }
-        return result;
-      }
+    if (swept_area_cost == UNKNOWN_COST && !traverse_unknown) {
+      result.in_collision = true;
+      return result;
     }
 
+    if (swept_area_cost >= OCCUPIED_COST) {
+      result.in_collision = true;
+      return result;
+    }
   }
 
   return result;
