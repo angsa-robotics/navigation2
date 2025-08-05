@@ -310,7 +310,7 @@ nav2_costmap_2d::Footprint MPPICollisionChecker::createConvexHull(
 
   // Build upper hull
   size_t t = hull.size() + 1;
-  for (int i = sorted_points.size() - 2; i >= 0; --i) {
+  for (int i = static_cast<int>(sorted_points.size()) - 2; i >= 0; --i) {
     while (hull.size() >= t && cross(hull[hull.size()-2], hull[hull.size()-1], sorted_points[i]) <= 0) {
       hull.pop_back();
     }
@@ -325,7 +325,7 @@ nav2_costmap_2d::Footprint MPPICollisionChecker::createConvexHull(
   return hull;
 }
 
-bool MPPICollisionChecker::outsideRange(const unsigned int & max, const float & value)
+bool MPPICollisionChecker::outsideRange(const unsigned int & max, const float & value) const
 {
   return value < 0.0f || value > max;
 }

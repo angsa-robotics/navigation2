@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License. Reserved.
 
+#ifndef NAV2_MPPI_CONTROLLER__COLLISION_CHECKER_HPP_
+#define NAV2_MPPI_CONTROLLER__COLLISION_CHECKER_HPP_
+
 #include <memory>
 #include <vector>
 
 #include "nav2_costmap_2d/footprint_collision_checker.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
-
-#ifndef NAV2_MPPI_CONTROLLER__COLLISION_CHECKER_HPP_
-#define NAV2_MPPI_CONTROLLER__COLLISION_CHECKER_HPP_
 
 const float UNKNOWN_COST = 255.0;
 const float OCCUPIED_COST = 254.0;
@@ -110,12 +110,11 @@ public:
 
   /**
    * @brief Check if value outside the range
-   * @param min Minimum value of the range
    * @param max Maximum value of the range
    * @param value the value to check if it is within the range
    * @return boolean if in range or not
    */
-  bool outsideRange(const unsigned int & max, const float & value);
+  bool outsideRange(const unsigned int & max, const float & value) const;
 
   /**
    * @brief Create convex hull from a set of points
