@@ -138,9 +138,9 @@ double FootprintCollisionChecker<CostmapT>::footprintCost(
         if (cell_cost == static_cast<double>(LETHAL_OBSTACLE)) {
           return cell_cost;
         }
+
         max_cost = std::max(max_cost, cell_cost);
       }
-
     }
   }
 
