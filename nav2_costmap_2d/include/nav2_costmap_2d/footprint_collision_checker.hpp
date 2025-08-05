@@ -50,16 +50,17 @@ public:
   explicit FootprintCollisionChecker(CostmapT costmap);
   /**
    * @brief Find the footprint cost in oriented footprint
+   * @param footprint The footprint to check
+   * @param check_full_area If true, checks the full area after perimeter check (default: false)
+   * @return The maximum cost found (perimeter only or full area depending on parameter)
    */
-  double footprintCost(const Footprint & footprint);
-  /**
-   * @brief Find the footprint cost for entire footprint area using full coverage
-   */
-  double footprintAreaCost(const Footprint & footprint);
+  double footprintCost(const Footprint & footprint, bool check_full_area = false);
   /**
    * @brief Find the footprint cost a a post with an unoriented footprint
    */
-  double footprintCostAtPose(double x, double y, double theta, const Footprint & footprint);
+  double footprintCostAtPose(
+    double x, double y, double theta, const Footprint & footprint,
+    bool check_full_area = false);
   /**
    * @brief Get the cost for a line segment
    */
@@ -85,31 +86,6 @@ public:
   }
 
 protected:
-  /**
-   * @brief Check if a point is inside the footprint polygon
-   * @param x X coordinate in world frame
-   * @param y Y coordinate in world frame  
-   * @param footprint Footprint polygon
-   * @return True if point is inside footprint
-   */
-  bool isPointInFootprint(
-    double x, double y,
-    const Footprint & footprint);
-
-  /**
-   * @brief Check if footprint is a rectangular (axis-aligned) shape
-   * @param footprint Footprint to check
-   * @param min_x Output minimum x coordinate
-   * @param max_x Output maximum x coordinate
-   * @param min_y Output minimum y coordinate
-   * @param max_y Output maximum y coordinate
-   * @return True if footprint is rectangular
-   */
-  bool isRectangularFootprint(
-    const Footprint & footprint, 
-    double & min_x, double & max_x, 
-    double & min_y, double & max_y) const;
-
   CostmapT costmap_;
 };
 

@@ -149,7 +149,7 @@ bool GridCollisionChecker::inCollision(
     }
 
     // Check full area covered by footprint
-    float footprint_cost = static_cast<float>(footprintAreaCost(current_footprint));
+    float footprint_cost = static_cast<float>(footprintCost(current_footprint), true);
 
     if (footprint_cost == UNKNOWN_COST && traverse_unknown) {
       return false;
