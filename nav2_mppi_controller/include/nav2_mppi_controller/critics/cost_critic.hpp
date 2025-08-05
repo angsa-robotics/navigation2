@@ -48,7 +48,6 @@ public:
   void score(CriticData & data) override;
 
 protected:
-
   /**
     * @brief An implementation of worldToMap fully using floats
     * @param wx Float world X coord

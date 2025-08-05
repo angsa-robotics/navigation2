@@ -42,7 +42,7 @@ void MPPICollisionChecker::setFootprint(
 {
   // Calculate the circumscribed cost automatically
   possible_collision_cost_ = findCircumscribedCost(inflation_layer_name);
-  
+
   if (possible_collision_cost_ <= 0.0f) {
     RCLCPP_ERROR_THROTTLE(
       logger_, *clock_, 1000,
@@ -86,11 +86,11 @@ CollisionResult MPPICollisionChecker::inCollision(
 
   // Step 1: Check all poses for bounds and get center costs
   std::vector<bool> needs_footprint_check(x.size(), false);
-  
+
   for (size_t i = 0; i < x.size(); ++i) {
     // Check to make sure cell is inside the map
     if (outsideRange(costmap_->getSizeInCellsX(), x[i]) ||
-        outsideRange(costmap_->getSizeInCellsY(), y[i]))
+      outsideRange(costmap_->getSizeInCellsY(), y[i]))
     {
       result.in_collision = true;
       return result;
@@ -99,7 +99,7 @@ CollisionResult MPPICollisionChecker::inCollision(
     // Get center cost for this pose
     float current_center_cost = static_cast<float>(costmap_->getCost(
       static_cast<unsigned int>(x[i] + 0.5f), static_cast<unsigned int>(y[i] + 0.5f)));
-    
+
     result.center_cost[i] = current_center_cost;
 
     if (current_center_cost == UNKNOWN_COST && !traverse_unknown) {
@@ -135,7 +135,7 @@ CollisionResult MPPICollisionChecker::inCollision(
     std::vector<bool> needs_swept_area_check(x.size(), false);
     // Cache computed footprints to avoid recomputation in Step 4
     std::vector<nav2_costmap_2d::Footprint> cached_footprints(x.size());
-    
+
     for (size_t i = 0; i < x.size(); ++i) {
       // Skip poses that don't need footprint checking
       if (!needs_footprint_check[i]) {
@@ -145,10 +145,11 @@ CollisionResult MPPICollisionChecker::inCollision(
       // Transform footprint to current orientation and world position
       double wx, wy;
       costmap_->mapToWorld(static_cast<double>(x[i]), static_cast<double>(y[i]), wx, wy);
-      
+
       // Transform the footprint to the given orientation
-      nav2_costmap_2d::Footprint oriented_footprint = transformFootprint(unoriented_footprint_, yaw[i]);
-      
+      nav2_costmap_2d::Footprint oriented_footprint = transformFootprint(unoriented_footprint_,
+          yaw[i]);
+
       // Translate to world position
       nav2_costmap_2d::Footprint current_footprint;
       current_footprint.reserve(oriented_footprint.size());
@@ -164,7 +165,7 @@ CollisionResult MPPICollisionChecker::inCollision(
 
       // Check footprint perimeter
       float footprint_cost = static_cast<float>(footprintCost(current_footprint, false));
-      
+
       // Store footprint cost in result
       result.footprint_cost[i] = footprint_cost;
 
@@ -190,7 +191,7 @@ CollisionResult MPPICollisionChecker::inCollision(
     // Find consecutive sequences of poses that need swept area checking
     std::vector<std::vector<size_t>> consecutive_sequences;
     std::vector<size_t> current_sequence;
-    
+
     for (size_t i = 0; i < x.size(); ++i) {
       if (needs_swept_area_check[i]) {
         current_sequence.push_back(i);
@@ -209,7 +210,7 @@ CollisionResult MPPICollisionChecker::inCollision(
         }
       }
     }
-    
+
     // Don't forget the last sequence if it ends at the last pose
     if (!current_sequence.empty()) {
       // Only add sequences with more than one pose
@@ -217,27 +218,27 @@ CollisionResult MPPICollisionChecker::inCollision(
         consecutive_sequences.push_back(current_sequence);
       }
     }
-    
+
     // Step 4: Check swept area using convex hull for each consecutive sequence
-    for (const auto& sequence : consecutive_sequences) {
+    for (const auto & sequence : consecutive_sequences) {
       // Collect all footprint points from consecutive poses using cached footprints
       std::vector<geometry_msgs::msg::Point> all_points;
-      
+
       for (size_t seq_idx : sequence) {
         // Use cached footprint instead of recomputing
         const nav2_costmap_2d::Footprint & current_footprint = cached_footprints[seq_idx];
-        
-        for (const auto& footprint_pt : current_footprint) {
+
+        for (const auto & footprint_pt : current_footprint) {
           all_points.push_back(footprint_pt);
         }
       }
-      
+
       // Create convex hull from all collected points
       nav2_costmap_2d::Footprint convex_hull = createConvexHull(all_points);
-      
+
       // Check swept area cost using full area checking
       float swept_area_cost = static_cast<float>(footprintCost(convex_hull, true));
-      
+
       if (swept_area_cost == UNKNOWN_COST && !traverse_unknown) {
         result.in_collision = true;
         // Mark all poses in this sequence as swept area collision
@@ -246,7 +247,7 @@ CollisionResult MPPICollisionChecker::inCollision(
         }
         return result;
       }
-      
+
       if (swept_area_cost >= OCCUPIED_COST) {
         result.in_collision = true;
         // Mark all poses in this sequence as swept area collision
@@ -256,14 +257,14 @@ CollisionResult MPPICollisionChecker::inCollision(
         return result;
       }
     }
-    
+
   }
 
   return result;
 }
 
 nav2_costmap_2d::Footprint MPPICollisionChecker::createConvexHull(
-  const std::vector<geometry_msgs::msg::Point>& points)
+  const std::vector<geometry_msgs::msg::Point> & points)
 {
   if (points.size() <= 1) {
     return points;
@@ -271,18 +272,18 @@ nav2_costmap_2d::Footprint MPPICollisionChecker::createConvexHull(
 
   // Create a copy of points for sorting
   std::vector<geometry_msgs::msg::Point> sorted_points = points;
-  
+
   // Sort points lexicographically (first by x, then by y)
-  std::sort(sorted_points.begin(), sorted_points.end(), 
-    [](const geometry_msgs::msg::Point& a, const geometry_msgs::msg::Point& b) {
+  std::sort(sorted_points.begin(), sorted_points.end(),
+    [](const geometry_msgs::msg::Point & a, const geometry_msgs::msg::Point & b) {
       return a.x < b.x || (a.x == b.x && a.y < b.y);
     });
 
   // Remove duplicate points
   sorted_points.erase(
     std::unique(sorted_points.begin(), sorted_points.end(),
-      [](const geometry_msgs::msg::Point& a, const geometry_msgs::msg::Point& b) {
-        return std::abs(a.x - b.x) < 1e-9 && std::abs(a.y - b.y) < 1e-9;
+    [](const geometry_msgs::msg::Point & a, const geometry_msgs::msg::Point & b) {
+      return std::abs(a.x - b.x) < 1e-9 && std::abs(a.y - b.y) < 1e-9;
       }),
     sorted_points.end());
 
@@ -292,17 +293,19 @@ nav2_costmap_2d::Footprint MPPICollisionChecker::createConvexHull(
 
   // Andrew's monotone chain algorithm
   std::vector<geometry_msgs::msg::Point> hull;
-  
+
   // Helper function to compute cross product
-  auto cross = [](const geometry_msgs::msg::Point& O, 
-                  const geometry_msgs::msg::Point& A, 
-                  const geometry_msgs::msg::Point& B) {
-    return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
-  };
+  auto cross = [](const geometry_msgs::msg::Point & O,
+    const geometry_msgs::msg::Point & A,
+    const geometry_msgs::msg::Point & B) {
+      return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+    };
 
   // Build lower hull
   for (size_t i = 0; i < sorted_points.size(); ++i) {
-    while (hull.size() >= 2 && cross(hull[hull.size()-2], hull[hull.size()-1], sorted_points[i]) <= 0) {
+    while (hull.size() >= 2 && cross(hull[hull.size() - 2], hull[hull.size() - 1],
+        sorted_points[i]) <= 0)
+    {
       hull.pop_back();
     }
     hull.push_back(sorted_points[i]);
@@ -311,7 +314,9 @@ nav2_costmap_2d::Footprint MPPICollisionChecker::createConvexHull(
   // Build upper hull
   size_t t = hull.size() + 1;
   for (int i = static_cast<int>(sorted_points.size()) - 2; i >= 0; --i) {
-    while (hull.size() >= t && cross(hull[hull.size()-2], hull[hull.size()-1], sorted_points[i]) <= 0) {
+    while (hull.size() >= t && cross(hull[hull.size() - 2], hull[hull.size() - 1],
+        sorted_points[i]) <= 0)
+    {
       hull.pop_back();
     }
     hull.push_back(sorted_points[i]);
@@ -331,21 +336,21 @@ bool MPPICollisionChecker::outsideRange(const unsigned int & max, const float & 
 }
 
 nav2_costmap_2d::Footprint MPPICollisionChecker::transformFootprint(
-  const nav2_costmap_2d::Footprint & footprint, 
+  const nav2_costmap_2d::Footprint & footprint,
   float yaw) const
 {
   double sin_th = sin(yaw);
   double cos_th = cos(yaw);
   nav2_costmap_2d::Footprint oriented_footprint;
   oriented_footprint.reserve(footprint.size());
-  
+
   geometry_msgs::msg::Point new_pt;
   for (unsigned int i = 0; i < footprint.size(); ++i) {
     new_pt.x = footprint[i].x * cos_th - footprint[i].y * sin_th;
     new_pt.y = footprint[i].x * sin_th + footprint[i].y * cos_th;
     oriented_footprint.push_back(new_pt);
   }
-  
+
   return oriented_footprint;
 }
 
@@ -358,7 +363,7 @@ float MPPICollisionChecker::findCircumscribedCost(const std::string & inflation_
 
   double result = -1.0;
   const double circum_radius = costmap_ros_->getLayeredCostmap()->getCircumscribedRadius();
-  
+
   if (static_cast<float>(circum_radius) == circumscribed_radius_) {
     // early return if footprint size is unchanged
     return circumscribed_cost_;
@@ -368,11 +373,11 @@ float MPPICollisionChecker::findCircumscribedCost(const std::string & inflation_
   const auto inflation_layer = nav2_costmap_2d::InflationLayer::getInflationLayer(
     costmap_ros_,
     inflation_layer_name);
-  
+
   if (inflation_layer != nullptr) {
     const double resolution = costmap_ros_->getCostmap()->getResolution();
     double inflation_radius = inflation_layer->getInflationRadius();
-    
+
     if (inflation_radius < circum_radius) {
       RCLCPP_ERROR(
         logger_,

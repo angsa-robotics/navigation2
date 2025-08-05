@@ -35,14 +35,16 @@ namespace nav2_mppi_controller
  * @struct CollisionResult
  * @brief Result structure for batch collision checking
  */
-enum class CollisionType {
+enum class CollisionType
+{
   NONE = 0,
   POINT_COST = 1,
   FOOTPRINT_COST = 2,
   SWEPT_AREA_COST = 3
 };
 
-struct CollisionResult {
+struct CollisionResult
+{
   bool in_collision;
   std::vector<float> center_cost;
   std::vector<float> footprint_cost;
@@ -122,7 +124,7 @@ public:
    * @return Convex hull as a footprint
    */
   nav2_costmap_2d::Footprint createConvexHull(
-    const std::vector<geometry_msgs::msg::Point>& points);
+    const std::vector<geometry_msgs::msg::Point> & points);
 
   /**
    * @brief Find the circumscribed cost for collision checking optimization
@@ -139,7 +141,7 @@ private:
    * @return Transformed footprint
    */
   nav2_costmap_2d::Footprint transformFootprint(
-    const nav2_costmap_2d::Footprint & footprint, 
+    const nav2_costmap_2d::Footprint & footprint,
     float yaw) const;
 
 protected:
