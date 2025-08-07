@@ -26,12 +26,13 @@
 #include "behaviortree_cpp/bt_factory.h"
 #include "behaviortree_cpp/utils/shared_library.h"
 
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
-#include "tf2_ros/create_timer_ros.h"
+#include "tf2_ros/buffer.hpp"
+#include "tf2_ros/transform_listener.hpp"
+#include "tf2_ros/create_timer_ros.hpp"
 
 #include "nav2_util/odometry_utils.hpp"
 #include "nav2_util/string_utils.hpp"
+#include "nav2_ros_common/lifecycle_node.hpp"
 
 #include "nav2_behavior_tree/plugins_list.hpp"
 
@@ -52,7 +53,7 @@ class BehaviorTreeHandler
 public:
   BehaviorTreeHandler()
   {
-    node_ = rclcpp::Node::make_shared("behavior_tree_handler");
+    node_ = std::make_shared<nav2::LifecycleNode>("behavior_tree_handler");
 
     tf_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
     auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
@@ -141,7 +142,7 @@ public:
   BT::Tree tree;
 
 private:
-  rclcpp::Node::SharedPtr node_;
+  nav2::LifecycleNode::SharedPtr node_;
 
   std::shared_ptr<tf2_ros::Buffer> tf_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;

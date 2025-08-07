@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(nav2_collision_monitor)
 
 find_package(ament_cmake REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
@@ -16,6 +17,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(nav2_ros_common REQUIRED)
 
 nav2_package()
 
@@ -47,6 +49,7 @@ target_link_libraries(${monitor_library_name} PUBLIC
   nav2_costmap_2d::nav2_costmap_2d_core
   ${nav2_msgs_TARGETS}
   nav2_util::nav2_util_core
+  nav2_ros_common::nav2_ros_common
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   ${sensor_msgs_TARGETS}
@@ -81,6 +84,7 @@ target_link_libraries(${detector_library_name} PUBLIC
   nav2_costmap_2d::nav2_costmap_2d_core
   ${nav2_msgs_TARGETS}
   nav2_util::nav2_util_core
+  nav2_ros_common::nav2_ros_common
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   ${sensor_msgs_TARGETS}
@@ -101,6 +105,7 @@ target_include_directories(${monitor_executable_name}
     "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
 target_link_libraries(${monitor_executable_name} PRIVATE
   rclcpp::rclcpp
+  nav2_ros_common::nav2_ros_common
   ${monitor_library_name}
 )
 
@@ -113,6 +118,7 @@ target_include_directories(${detector_executable_name}
     "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
 target_link_libraries(${detector_executable_name} PRIVATE
   rclcpp::rclcpp
+  nav2_ros_common::nav2_ros_common
   ${detector_library_name}
 )
 
@@ -164,6 +170,7 @@ ament_export_dependencies(
   sensor_msgs
   tf2
   tf2_ros
+  nav2_ros_common
   visualization_msgs
 )
 ament_export_targets(export_${PROJECT_NAME})

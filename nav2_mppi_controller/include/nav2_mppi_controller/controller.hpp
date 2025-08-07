@@ -23,12 +23,9 @@
 #include "nav2_mppi_controller/tools/trajectory_visualizer.hpp"
 #include "nav2_mppi_controller/models/constraints.hpp"
 #include "nav2_mppi_controller/tools/utils.hpp"
-
+#include "nav2_ros_common/lifecycle_node.hpp"
 #include "nav2_core/controller.hpp"
 #include "nav2_core/goal_checker.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
-#include "std_msgs/msg/header.hpp"
 
 namespace nav2_mppi_controller
 {
@@ -55,7 +52,7 @@ public:
     * @param costmap_ros Costmap2DROS object of environment
     */
   void configure(
-    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+    const nav2::LifecycleNode::WeakPtr & parent,
     std::string name, const std::shared_ptr<tf2_ros::Buffer> tf,
     const std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
 
@@ -126,11 +123,11 @@ protected:
     const std_msgs::msg::Header & header);
 
   std::string name_;
-  rclcpp_lifecycle::LifecycleNode::WeakPtr parent_;
+  nav2::LifecycleNode::WeakPtr parent_;
   rclcpp::Logger logger_{rclcpp::get_logger("MPPIController")};
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-  rclcpp_lifecycle::LifecyclePublisher<nav2_msgs::msg::Trajectory>::SharedPtr opt_traj_pub_;
+  nav2::Publisher<nav2_msgs::msg::Trajectory>::SharedPtr opt_traj_pub_;
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr opt_footprints_pub_;
 
   std::unique_ptr<ParametersHandler> parameters_handler_;

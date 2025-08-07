@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(dwb_plugins)
 
 find_package(ament_cmake REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(dwb_core REQUIRED)
 find_package(dwb_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -12,6 +13,7 @@ find_package(nav_2d_utils REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rcl_interfaces REQUIRED)
+find_package(nav2_ros_common REQUIRED)
 
 nav2_package()
 
@@ -29,6 +31,7 @@ target_link_libraries(standard_traj_generator PUBLIC
   ${dwb_msgs_TARGETS}
   ${geometry_msgs_TARGETS}
   nav2_util::nav2_util_core
+  nav2_ros_common::nav2_ros_common
   ${nav_2d_msgs_TARGETS}
   rclcpp::rclcpp
   ${rcl_interfaces_TARGETS}
@@ -75,6 +78,7 @@ ament_export_dependencies(
   nav_2d_msgs
   rclcpp
   rcl_interfaces
+  nav2_ros_common
 )
 ament_export_targets(${PROJECT_NAME})
 

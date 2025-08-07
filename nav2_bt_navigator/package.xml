@@ -11,6 +11,7 @@
   <build_depend>nav2_common</build_depend>
 
   <depend>ament_index_cpp</depend>
+  <depend>backward_ros</depend>
   <depend>geometry_msgs</depend>
   <depend>nav2_behavior_tree</depend>
   <depend>nav2_core</depend>
@@ -23,6 +24,7 @@
   <depend>rclcpp_components</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>tf2_ros</depend>
+  <depend>nav2_ros_common</depend>
 
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_lint_auto</test_depend>

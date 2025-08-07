@@ -22,7 +22,7 @@
 
 #include <rclcpp/executors.hpp>
 
-#include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/transform_broadcaster.hpp"
 
 #include "nav2_costmap_2d/costmap_2d.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
@@ -45,7 +45,7 @@ void waitSome(const std::chrono::nanoseconds & duration, TNode & node)
 void sendTf(
   std::string_view source, std::string_view dest,
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster,
-  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node, size_t n)
+  nav2::LifecycleNode::SharedPtr node, size_t n)
 {
   while (--n != 0u) {
     auto t = geometry_msgs::msg::TransformStamped();

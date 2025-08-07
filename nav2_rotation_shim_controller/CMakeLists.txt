@@ -3,6 +3,7 @@ project(nav2_rotation_shim_controller)
 
 find_package(ament_cmake REQUIRED)
 find_package(angles REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_controller REQUIRED)
@@ -16,6 +17,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(nav2_ros_common REQUIRED)
 
 nav2_package()
 
@@ -32,6 +34,7 @@ target_link_libraries(${library_name} PUBLIC
   ${geometry_msgs_TARGETS}
   nav2_controller::position_goal_checker
   nav2_core::nav2_core
+  nav2_ros_common::nav2_ros_common
   nav2_costmap_2d::nav2_costmap_2d_core
   pluginlib::pluginlib
   rclcpp::rclcpp
@@ -78,6 +81,7 @@ ament_export_dependencies(
   rclcpp_lifecycle
   rcl_interfaces
   tf2_ros
+  nav2_ros_common
 )
 ament_export_targets(${library_name})
 

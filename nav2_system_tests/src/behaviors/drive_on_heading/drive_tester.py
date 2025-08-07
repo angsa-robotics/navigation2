@@ -23,8 +23,9 @@ from nav2_msgs.action import DriveOnHeading
 from nav2_msgs.msg import Costmap
 from nav2_msgs.srv import ManageLifecycleNodes
 import rclpy
-from rclpy.action import ActionClient  # type: ignore[attr-defined]
+from rclpy.action import ActionClient
 from rclpy.action.client import ClientGoalHandle
+from rclpy.client import Client
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
@@ -40,7 +41,11 @@ class DriveTest(Node):
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=1,
         )
-        self.action_client = ActionClient(self, DriveOnHeading, 'drive_on_heading')
+        self.action_client: ActionClient[
+            DriveOnHeading.Goal,
+            DriveOnHeading.Result,
+            DriveOnHeading.Feedback
+        ] = ActionClient(self, DriveOnHeading, 'drive_on_heading')
         self.costmap_pub = self.create_publisher(
             Costmap, 'local_costmap/costmap_raw', self.costmap_qos)
         self.footprint_pub = self.create_publisher(
@@ -297,7 +302,8 @@ class DriveTest(Node):
         self.info_msg('Destroyed DriveOnHeading action client')
 
         transition_service = 'lifecycle_manager_navigation/manage_nodes'
-        mgr_client = self.create_client(ManageLifecycleNodes, transition_service)
+        mgr_client: Client[ManageLifecycleNodes.Request, ManageLifecycleNodes.Response] \
+            = self.create_client(ManageLifecycleNodes, transition_service)
         while not mgr_client.wait_for_service(timeout_sec=1.0):
             self.info_msg(f'{transition_service} service not available, waiting...')
 
@@ -316,7 +322,7 @@ class DriveTest(Node):
         self.get_logger().info(msg)
 
     def warn_msg(self, msg: str) -> None:
-        self.get_logger().warn(msg)
+        self.get_logger().warning(msg)
 
     def error_msg(self, msg: str) -> None:
         self.get_logger().error(msg)

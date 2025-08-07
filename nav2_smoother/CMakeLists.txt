@@ -3,18 +3,19 @@ project(nav2_smoother)
 
 find_package(ament_cmake REQUIRED)
 find_package(angles REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_core REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav2_util REQUIRED)
-find_package(nav_2d_utils REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(nav2_ros_common REQUIRED)
 
 nav2_package()
 
@@ -40,10 +41,9 @@ target_link_libraries(${library_name} PUBLIC
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   tf2_ros::tf2_ros
+  nav2_ros_common::nav2_ros_common
 )
 target_link_libraries(${library_name} PRIVATE
-  nav_2d_utils::conversions
-  nav_2d_utils::tf_help
   rclcpp_components::component
   tf2::tf2
 )
@@ -77,6 +77,7 @@ target_link_libraries(simple_smoother PUBLIC
   rclcpp_lifecycle::rclcpp_lifecycle
   tf2::tf2
   tf2_ros::tf2_ros
+  nav2_ros_common::nav2_ros_common
 )
 target_link_libraries(simple_smoother PRIVATE
   pluginlib::pluginlib
@@ -100,6 +101,7 @@ target_link_libraries(savitzky_golay_smoother PUBLIC
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   tf2::tf2
+  nav2_ros_common::nav2_ros_common
   tf2_ros::tf2_ros
 )
 target_link_libraries(savitzky_golay_smoother PRIVATE
@@ -151,6 +153,7 @@ ament_export_dependencies(
   nav2_util
   pluginlib
   rclcpp
+  nav2_ros_common
   rclcpp_lifecycle
   tf2
   tf2_ros

@@ -20,7 +20,7 @@
 #include <vector>
 #include <nanoflann.hpp>
 
-#include "nav2_util/lifecycle_node.hpp"
+#include "nav2_ros_common/lifecycle_node.hpp"
 #include "nav2_route/types.hpp"
 #include "nav2_route/utils.hpp"
 
@@ -55,7 +55,9 @@ struct GraphAdaptor
 };
 
 typedef nanoflann::KDTreeSingleIndexAdaptor<
-    nanoflann::L2_Simple_Adaptor<double, GraphAdaptor>, GraphAdaptor, DIMENSION> kd_tree_t;
+    nanoflann::L2_Simple_Adaptor<double, GraphAdaptor>, GraphAdaptor, DIMENSION,
+    unsigned int>
+  kd_tree_t;
 
 /**
  * @class nav2_route::NodeSpatialTree
