@@ -32,31 +32,45 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NAV_2D_UTILS__CONVERSIONS_HPP_
-#define NAV_2D_UTILS__CONVERSIONS_HPP_
+#ifndef NAV_2D_UTILS__PARAMETERS_HPP_
+#define NAV_2D_UTILS__PARAMETERS_HPP_
 
-#include <vector>
 #include <string>
-#include "geometry_msgs/msg/pose.hpp"
-#include "geometry_msgs/msg/twist.hpp"
-#include "nav_2d_msgs/msg/twist2_d.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "nav_msgs/msg/path.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "tf2/convert.hpp"
+#include <memory>
 
+#include "rclcpp/rclcpp.hpp"
+#include "nav2_ros_common/lifecycle_node.hpp"
+#include "nav2_ros_common/node_utils.hpp"
+
+// TODO(crdelsey): Remove when code is re-enabled
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace nav_2d_utils
 {
-geometry_msgs::msg::Twist twist2Dto3D(const nav_2d_msgs::msg::Twist2D & cmd_vel_2d);
-nav_2d_msgs::msg::Twist2D twist3Dto2D(const geometry_msgs::msg::Twist & cmd_vel);
-geometry_msgs::msg::PoseStamped poseToPoseStamped(
-  const geometry_msgs::msg::Pose & pose,
-  const std::string & frame, const rclcpp::Time & stamp);
-nav_msgs::msg::Path posesToPath(const std::vector<geometry_msgs::msg::PoseStamped> & poses);
-nav_msgs::msg::Path posesToPath(
-  const std::vector<geometry_msgs::msg::Pose> & poses,
-  const std::string & frame, const rclcpp::Time & stamp);
+
+/**
+ * @brief Search for a parameter and load it, or use the default value
+ *
+ * This templated function shortens a commonly used ROS pattern in which you
+ * search for a parameter and get its value if it exists, otherwise returning a default value.
+ *
+ * @param nh NodeHandle to start the parameter search from
+ * @param param_name Name of the parameter to search for
+ * @param default_value Value to return if not found
+ * @return Value of parameter if found, otherwise the default_value
+ */
+template<class param_t>
+param_t searchAndGetParam(
+  const nav2::LifecycleNode::SharedPtr & nh, const std::string & param_name,
+  const param_t & default_value)
+{
+  nav2::declare_parameter_if_not_declared(
+    nh, param_name,
+    rclcpp::ParameterValue(default_value));
+  return nh->get_parameter(param_name).get_value<param_t>();
+}
 
 }  // namespace nav_2d_utils
+#pragma GCC diagnostic pop
 
-#endif  // NAV_2D_UTILS__CONVERSIONS_HPP_
+#endif  // NAV_2D_UTILS__PARAMETERS_HPP_

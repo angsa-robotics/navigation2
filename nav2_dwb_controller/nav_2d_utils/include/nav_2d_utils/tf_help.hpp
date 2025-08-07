@@ -32,31 +32,54 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NAV_2D_UTILS__CONVERSIONS_HPP_
-#define NAV_2D_UTILS__CONVERSIONS_HPP_
+#ifndef NAV_2D_UTILS__TF_HELP_HPP_
+#define NAV_2D_UTILS__TF_HELP_HPP_
 
-#include <vector>
 #include <string>
-#include "geometry_msgs/msg/pose.hpp"
-#include "geometry_msgs/msg/twist.hpp"
-#include "nav_2d_msgs/msg/twist2_d.hpp"
+#include <memory>
+#include "tf2_ros/buffer.hpp"
+#include "nav_2d_utils/conversions.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "nav_msgs/msg/path.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "tf2/convert.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 namespace nav_2d_utils
 {
-geometry_msgs::msg::Twist twist2Dto3D(const nav_2d_msgs::msg::Twist2D & cmd_vel_2d);
-nav_2d_msgs::msg::Twist2D twist3Dto2D(const geometry_msgs::msg::Twist & cmd_vel);
-geometry_msgs::msg::PoseStamped poseToPoseStamped(
-  const geometry_msgs::msg::Pose & pose,
-  const std::string & frame, const rclcpp::Time & stamp);
-nav_msgs::msg::Path posesToPath(const std::vector<geometry_msgs::msg::PoseStamped> & poses);
-nav_msgs::msg::Path posesToPath(
-  const std::vector<geometry_msgs::msg::Pose> & poses,
-  const std::string & frame, const rclcpp::Time & stamp);
+/**
+ * @brief Transform a PoseStamped from one frame to another while catching exceptions
+ *
+ * Also returns immediately if the frames are equal.
+ * @param tf Smart pointer to TFListener
+ * @param frame Frame to transform the pose into
+ * @param in_pose Pose to transform
+ * @param out_pose Place to store the resulting transformed pose
+ * @return True if successful transform
+ */
+bool transformPose(
+  const std::shared_ptr<tf2_ros::Buffer> tf,
+  const std::string frame,
+  const geometry_msgs::msg::PoseStamped & in_pose,
+  geometry_msgs::msg::PoseStamped & out_pose,
+  rclcpp::Duration & transform_tolerance
+);
+
+/**
+ * @brief Transform a PoseStamped from one frame to another while catching exceptions
+ *
+ * Also returns immediately if the frames are equal.
+ * @param tf Smart pointer to TFListener
+ * @param frame Frame to transform the pose into
+ * @param in_pose Pose to transform
+ * @param out_pose Place to store the resulting transformed pose
+ * @return True if successful transform
+ */
+bool transformPose(
+  const std::shared_ptr<tf2_ros::Buffer> tf,
+  const std::string frame,
+  const geometry_msgs::msg::PoseStamped & in_pose,
+  geometry_msgs::msg::PoseStamped & out_pose,
+  rclcpp::Duration & transform_tolerance
+);
 
 }  // namespace nav_2d_utils
 
-#endif  // NAV_2D_UTILS__CONVERSIONS_HPP_
+#endif  // NAV_2D_UTILS__TF_HELP_HPP_

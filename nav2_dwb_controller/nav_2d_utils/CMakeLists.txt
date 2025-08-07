@@ -56,7 +56,28 @@ target_link_libraries(path_ops PRIVATE
   ${geometry_msgs_TARGETS}
 )
 
-install(TARGETS conversions path_ops
+add_library(tf_help SHARED
+  src/tf_help.cpp
+)
+target_include_directories(tf_help
+  PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+)
+target_link_libraries(tf_help PUBLIC
+  conversions
+  ${geometry_msgs_TARGETS}
+  ${nav_2d_msgs_TARGETS}
+  rclcpp::rclcpp
+  nav2_ros_common::nav2_ros_common
+  tf2::tf2
+  tf2_geometry_msgs::tf2_geometry_msgs
+  tf2_ros::tf2_ros
+  rclcpp_lifecycle::rclcpp_lifecycle
+  rcl_lifecycle::rcl_lifecycle
+)
+
+install(TARGETS conversions path_ops tf_help
   EXPORT ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -80,7 +101,7 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_include_directories(include/${PROJECT_NAME})
-ament_export_libraries(conversions path_ops)
+ament_export_libraries(conversions path_ops tf_help)
 ament_export_dependencies(
   geometry_msgs
   nav_2d_msgs

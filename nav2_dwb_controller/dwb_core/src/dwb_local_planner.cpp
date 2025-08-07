@@ -44,6 +44,7 @@
 #include "dwb_msgs/msg/critic_score.hpp"
 #include "nav_2d_msgs/msg/twist2_d.hpp"
 #include "nav_2d_utils/conversions.hpp"
+#include "nav_2d_utils/tf_help.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "nav2_ros_common/lifecycle_node.hpp"
 #include "nav2_ros_common/node_utils.hpp"
@@ -111,7 +112,8 @@ void DWBLocalPlanner::configure(
   std::string traj_generator_name;
 
   double transform_tolerance;
-  node->get_parameter(dwb_plugin_name_ + ".transform_tolerance", transform_tolerance_);
+  node->get_parameter(dwb_plugin_name_ + ".transform_tolerance", transform_tolerance);
+  transform_tolerance_ = rclcpp::Duration::from_seconds(transform_tolerance);
   RCLCPP_INFO(logger_, "Setting transform_tolerance to %f", transform_tolerance);
 
   node->get_parameter(dwb_plugin_name_ + ".prune_plan", prune_plan_);
@@ -291,9 +293,9 @@ DWBLocalPlanner::prepareGlobalPlan(
 
   goal_pose.header.frame_id = global_plan_.header.frame_id;
   goal_pose.pose = global_plan_.poses.back().pose;
-  nav2_util::transformPoseInTargetFrame(
-    goal_pose, goal_pose, *tf_,
-    costmap_ros_->getGlobalFrameID(), transform_tolerance_);
+  nav_2d_utils::transformPose(
+    tf_, costmap_ros_->getGlobalFrameID(), goal_pose,
+    goal_pose, transform_tolerance_);
 }
 
 nav_2d_msgs::msg::Twist2DStamped
@@ -468,9 +470,9 @@ DWBLocalPlanner::transformGlobalPlan(
 
   // let's get the pose of the robot in the frame of the plan
   geometry_msgs::msg::PoseStamped robot_pose;
-  if (!nav2_util::transformPoseInTargetFrame(
-      pose, robot_pose, *tf_,
-      global_plan_.header.frame_id, transform_tolerance_))
+  if (!nav_2d_utils::transformPose(
+      tf_, global_plan_.header.frame_id, pose,
+      robot_pose, transform_tolerance_))
   {
     throw nav2_core::
           ControllerTFError("Unable to transform robot pose into global plan's frame");
@@ -536,9 +538,9 @@ DWBLocalPlanner::transformGlobalPlan(
   // frame to local
   auto transformGlobalPoseToLocal = [&](const auto & global_plan_pose) {
       geometry_msgs::msg::PoseStamped transformed_pose;
-      nav2_util::transformPoseInTargetFrame(
-        global_plan_pose, transformed_pose, *tf_,
-        transformed_plan.header.frame_id, transform_tolerance_);
+      nav_2d_utils::transformPose(
+        tf_, transformed_plan.header.frame_id,
+        global_plan_pose, transformed_pose, transform_tolerance_);
       return transformed_pose;
     };
 

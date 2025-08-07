@@ -32,31 +32,67 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NAV_2D_UTILS__CONVERSIONS_HPP_
-#define NAV_2D_UTILS__CONVERSIONS_HPP_
-
-#include <vector>
+#include <memory>
 #include <string>
-#include "geometry_msgs/msg/pose.hpp"
-#include "geometry_msgs/msg/twist.hpp"
-#include "nav_2d_msgs/msg/twist2_d.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "nav_msgs/msg/path.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "tf2/convert.hpp"
+#include "nav_2d_utils/tf_help.hpp"
 
 namespace nav_2d_utils
 {
-geometry_msgs::msg::Twist twist2Dto3D(const nav_2d_msgs::msg::Twist2D & cmd_vel_2d);
-nav_2d_msgs::msg::Twist2D twist3Dto2D(const geometry_msgs::msg::Twist & cmd_vel);
-geometry_msgs::msg::PoseStamped poseToPoseStamped(
-  const geometry_msgs::msg::Pose & pose,
-  const std::string & frame, const rclcpp::Time & stamp);
-nav_msgs::msg::Path posesToPath(const std::vector<geometry_msgs::msg::PoseStamped> & poses);
-nav_msgs::msg::Path posesToPath(
-  const std::vector<geometry_msgs::msg::Pose> & poses,
-  const std::string & frame, const rclcpp::Time & stamp);
+
+bool transformPose(
+  const std::shared_ptr<tf2_ros::Buffer> tf,
+  const std::string frame,
+  const geometry_msgs::msg::PoseStamped & in_pose,
+  geometry_msgs::msg::PoseStamped & out_pose,
+  rclcpp::Duration & transform_tolerance
+)
+{
+  if (in_pose.header.frame_id == frame) {
+    out_pose = in_pose;
+    return true;
+  }
+
+  try {
+    tf->transform(in_pose, out_pose, frame);
+    return true;
+  } catch (tf2::ExtrapolationException & ex) {
+    auto transform = tf->lookupTransform(
+      frame,
+      in_pose.header.frame_id,
+      tf2::TimePointZero
+    );
+    if (
+      (rclcpp::Time(in_pose.header.stamp) - rclcpp::Time(transform.header.stamp)) >
+      transform_tolerance)
+    {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("tf_help"),
+        "Transform data too old when converting from %s to %s",
+        in_pose.header.frame_id.c_str(),
+        frame.c_str()
+      );
+      RCLCPP_ERROR(
+        rclcpp::get_logger("tf_help"),
+        "Data time: %ds %uns, Transform time: %ds %uns",
+        in_pose.header.stamp.sec,
+        in_pose.header.stamp.nanosec,
+        transform.header.stamp.sec,
+        transform.header.stamp.nanosec
+      );
+      return false;
+    } else {
+      tf2::doTransform(in_pose, out_pose, transform);
+      return true;
+    }
+  } catch (tf2::TransformException & ex) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("tf_help"),
+      "Exception in transformPose: %s",
+      ex.what()
+    );
+    return false;
+  }
+  return false;
+}
 
 }  // namespace nav_2d_utils
-
-#endif  // NAV_2D_UTILS__CONVERSIONS_HPP_

@@ -38,6 +38,7 @@
 #include <memory>
 #include <string>
 
+#include "nav_2d_utils/parameters.hpp"
 #include "nav2_ros_common/node_utils.hpp"
 
 namespace dwb_plugins

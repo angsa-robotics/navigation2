@@ -199,7 +199,7 @@ protected:
   bool prune_plan_;
   double prune_distance_;
   bool debug_trajectory_details_;
-  double transform_tolerance_{0};
+  rclcpp::Duration transform_tolerance_{0, 0};
   bool shorten_transformed_plan_;
   double forward_prune_distance_;
 
