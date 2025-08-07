@@ -24,7 +24,6 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-find_package(OpenCV REQUIRED)
 
 nav2_package()
 
@@ -58,7 +57,6 @@ target_link_libraries(nav2_costmap_2d_core PUBLIC
   tf2::tf2
   tf2_ros::tf2_ros
   tf2_sensor_msgs::tf2_sensor_msgs
-  ${OpenCV_LIBRARIES}
 )
 
 add_library(layers SHARED
