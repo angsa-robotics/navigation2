@@ -46,7 +46,7 @@ public:
 private:
   void dataCallback(nav_msgs::msg::OccupancyGrid::ConstSharedPtr msg);
   nav_msgs::msg::OccupancyGrid::ConstSharedPtr data_;
-  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr data_sub_;
+  nav2::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr data_sub_;
   int occupied_threshold_;
 };
 

@@ -113,7 +113,7 @@ protected:
    */
   bool initializeGoalPoses(ActionT::Goal::ConstSharedPtr goal);
 
-  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
+  nav2::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
   rclcpp_action::Client<ActionT>::SharedPtr self_client_;
 
   rclcpp::Time start_time_;
