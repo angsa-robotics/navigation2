@@ -55,7 +55,6 @@ NavigateThroughPosesNavigator::configure(
 
   goal_sub_ = node->create_subscription<geometry_msgs::msg::PoseStamped>(
     "goal_poses",
-    rclcpp::SystemDefaultsQoS(),
     std::bind(&NavigateThroughPosesNavigator::onGoalPoseReceived, this, std::placeholders::_1));
 
   return true;
