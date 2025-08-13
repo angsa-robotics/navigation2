@@ -1,4 +1,5 @@
 // Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2025 Angsa Robotics
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +19,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 #include "nav2_costmap_2d/footprint_collision_checker.hpp"
 
@@ -30,6 +32,68 @@ using namespace std::chrono_literals;
 
 namespace nav2_costmap_2d
 {
+
+// Simple 2D point structure
+struct Point2D
+{
+  int x, y;
+  Point2D(int x_val, int y_val)
+  : x(x_val), y(y_val) {}
+};
+
+// Simple rectangle structure
+struct Rectangle
+{
+  int x, y, width, height;
+  Rectangle(int x_val, int y_val, int w, int h)
+  : x(x_val), y(y_val), width(w), height(h) {}
+};
+
+// Calculate bounding rectangle for a set of points
+Rectangle calculateBoundingRect(const std::vector<Point2D> & points)
+{
+  if (points.empty()) {
+    return Rectangle(0, 0, 0, 0);
+  }
+
+  int min_x = points[0].x;
+  int max_x = points[0].x;
+  int min_y = points[0].y;
+  int max_y = points[0].y;
+
+  for (const auto & pt : points) {
+    min_x = std::min(min_x, pt.x);
+    max_x = std::max(max_x, pt.x);
+    min_y = std::min(min_y, pt.y);
+    max_y = std::max(max_y, pt.y);
+  }
+
+  return Rectangle(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1);
+}
+
+// Point-in-polygon test using ray casting algorithm
+bool isPointInPolygon(int x, int y, const std::vector<Point2D> & polygon)
+{
+  if (polygon.size() < 3) {
+    return false;
+  }
+
+  bool inside = false;
+  size_t j = polygon.size() - 1;
+
+  for (size_t i = 0; i < polygon.size(); i++) {
+    if (((polygon[i].y > y) != (polygon[j].y > y)) &&
+      (x <
+      (polygon[j].x - polygon[i].x) * (y - polygon[i].y) / (polygon[j].y - polygon[i].y) +
+      polygon[i].x))
+    {
+      inside = !inside;
+    }
+    j = i;
+  }
+
+  return inside;
+}
 
 template<typename CostmapT>
 FootprintCollisionChecker<CostmapT>::FootprintCollisionChecker()
@@ -45,86 +109,84 @@ FootprintCollisionChecker<CostmapT>::FootprintCollisionChecker(
 }
 
 template<typename CostmapT>
-double FootprintCollisionChecker<CostmapT>::footprintCost(const Footprint & footprint)
+double FootprintCollisionChecker<CostmapT>::footprintCost(
+  const Footprint & footprint,
+  bool check_full_area)
 {
-  // now we really have to lay down the footprint in the costmap_ grid
-  unsigned int x0, x1, y0, y1;
-  double footprint_cost = 0.0;
-
-  // get the cell coord of the first point
-  if (!worldToMap(footprint[0].x, footprint[0].y, x0, y0)) {
+  if (footprint.empty()) {
     return static_cast<double>(NO_INFORMATION);
   }
 
-  // cache the start to eliminate a worldToMap call
-  unsigned int xstart = x0;
-  unsigned int ystart = y0;
-
-  // we need to rasterize each line in the footprint
-  for (unsigned int i = 0; i < footprint.size() - 1; ++i) {
-    // get the cell coord of the second point
-    if (!worldToMap(footprint[i + 1].x, footprint[i + 1].y, x1, y1)) {
-      return static_cast<double>(NO_INFORMATION);
-    }
-
-    footprint_cost = std::max(lineCost(x0, x1, y0, y1), footprint_cost);
-
-    // the second point is next iteration's first point
-    x0 = x1;
-    y0 = y1;
-
-    // if in collision, no need to continue
-    if (footprint_cost == static_cast<double>(LETHAL_OBSTACLE)) {
-      return footprint_cost;
-    }
-  }
-
-  // we also need to connect the first point in the footprint to the last point
-  // the last iteration's x1, y1 are the last footprint point's coordinates
-  return std::max(lineCost(xstart, x1, ystart, y1), footprint_cost);
-}
-
-template<typename CostmapT>
-double FootprintCollisionChecker<CostmapT>::footprintAreaCost(const Footprint & footprint)
-{
-  // Find bounding box of footprint
-  double min_x = std::numeric_limits<double>::max();
-  double max_x = std::numeric_limits<double>::lowest();
-  double min_y = std::numeric_limits<double>::max();
-  double max_y = std::numeric_limits<double>::lowest();
+  // Pre-convert all footprint points to map coordinates once
+  std::vector<Point2D> polygon_points;
+  polygon_points.reserve(footprint.size());
 
   for (const auto & point : footprint) {
-    min_x = std::min(min_x, point.x);
-    max_x = std::max(max_x, point.x);
-    min_y = std::min(min_y, point.y);
-    max_y = std::max(max_y, point.y);
+    unsigned int mx, my;
+    if (!worldToMap(point.x, point.y, mx, my)) {
+      return static_cast<double>(NO_INFORMATION);
+    }
+    polygon_points.emplace_back(static_cast<int>(mx), static_cast<int>(my));
   }
 
-  // Convert to grid coordinates
-  unsigned int min_mx, min_my, max_mx, max_my;
-  if (!worldToMap(min_x, min_y, min_mx, min_my) ||
-      !worldToMap(max_x, max_y, max_mx, max_my)) {
-    return static_cast<double>(NO_INFORMATION);
+  // Check perimeter using pre-converted coordinates
+  double perimeter_cost = 0.0;
+  for (size_t i = 0; i < polygon_points.size(); ++i) {
+    size_t next_i = (i + 1) % polygon_points.size();
+    double line_cost = lineCost(
+      polygon_points[i].x, polygon_points[next_i].x,
+      polygon_points[i].y, polygon_points[next_i].y);
+    
+    perimeter_cost = std::max(perimeter_cost, line_cost);
+    
+    // Early termination if lethal obstacle found
+    if (perimeter_cost == static_cast<double>(LETHAL_OBSTACLE)) {
+      return perimeter_cost;
+    }
   }
 
-  double max_cost = 0.0;
+  // If perimeter check found collision or full area check not requested, return perimeter result
+  if (perimeter_cost == static_cast<double>(LETHAL_OBSTACLE) || !check_full_area) {
+    return perimeter_cost;
+  }
 
-  // Check all cells within bounding box
-  for (unsigned int my = min_my; my <= max_my; ++my) {
-    for (unsigned int mx = min_mx; mx <= max_mx; ++mx) {
-      double wx, wy;
-      costmap_->mapToWorld(mx, my, wx, wy);
+  // If no collision on perimeter and full area check requested, rasterize the full area
+  Rectangle bbox = calculateBoundingRect(polygon_points);
+  
+  // Clamp bounding box to costmap dimensions for safety
+  unsigned int costmap_width = costmap_->getSizeInCellsX();
+  unsigned int costmap_height = costmap_->getSizeInCellsY();
+  
+  int min_x = std::max(0, bbox.x);
+  int min_y = std::max(0, bbox.y);
+  int max_x = std::min(static_cast<int>(costmap_width - 1), bbox.x + bbox.width - 1);
+  int max_y = std::min(static_cast<int>(costmap_height - 1), bbox.y + bbox.height - 1);
 
-      if (isPointInFootprint(wx, wy, footprint)) {
-        double cost = pointCost(mx, my);
-        
-        if (cost == static_cast<double>(LETHAL_OBSTACLE)) {
-          return cost;
-        } else if (cost == static_cast<double>(NO_INFORMATION)) {
-          // Return NO_INFORMATION for unknown cells, let caller decide how to handle
-          return cost;
+  // Translate polygon points to bounding box coordinates
+  std::vector<Point2D> bbox_polygon;
+  bbox_polygon.reserve(polygon_points.size());
+  for (const auto & pt : polygon_points) {
+    bbox_polygon.emplace_back(pt.x - bbox.x, pt.y - bbox.y);
+  }
+
+  double max_cost = perimeter_cost;
+
+  // Iterate through the clamped bounding box and check costs only for cells inside the polygon
+  for (int y = min_y; y <= max_y; ++y) {
+    for (int x = min_x; x <= max_x; ++x) {
+      // Convert to bounding box coordinates for polygon test
+      int bbox_x = x - bbox.x;
+      int bbox_y = y - bbox.y;
+      
+      if (isPointInPolygon(bbox_x, bbox_y, bbox_polygon)) {
+        double cell_cost = pointCost(x, y);
+
+        // Early termination if lethal obstacle found
+        if (cell_cost == static_cast<double>(LETHAL_OBSTACLE)) {
+          return cell_cost;
         }
-        max_cost = std::max(max_cost, cost);
+
+        max_cost = std::max(max_cost, cell_cost);
       }
     }
   }
@@ -164,6 +226,13 @@ bool FootprintCollisionChecker<CostmapT>::worldToMap(
 template<typename CostmapT>
 double FootprintCollisionChecker<CostmapT>::pointCost(int x, int y) const
 {
+  // Bounds checking to prevent segmentation faults
+  if (x < 0 || y < 0 || 
+      x >= static_cast<int>(costmap_->getSizeInCellsX()) || 
+      y >= static_cast<int>(costmap_->getSizeInCellsY())) {
+    return static_cast<double>(LETHAL_OBSTACLE);
+  }
+  
   return static_cast<double>(costmap_->getCost(x, y));
 }
 
@@ -175,7 +244,7 @@ void FootprintCollisionChecker<CostmapT>::setCostmap(CostmapT costmap)
 
 template<typename CostmapT>
 double FootprintCollisionChecker<CostmapT>::footprintCostAtPose(
-  double x, double y, double theta, const Footprint & footprint)
+  double x, double y, double theta, const Footprint & footprint, bool check_full_area)
 {
   double cos_th = cos(theta);
   double sin_th = sin(theta);
@@ -188,42 +257,7 @@ double FootprintCollisionChecker<CostmapT>::footprintCostAtPose(
     oriented_footprint.push_back(new_pt);
   }
 
-  return footprintAreaCost(oriented_footprint);
-}
-
-template<typename CostmapT>
-bool FootprintCollisionChecker<CostmapT>::isPointInFootprint(
-  double x, double y, 
-  const Footprint & footprint)
-{
-  // Adaptation of Shimrat, Moshe. "Algorithm 112: position of point relative to polygon."
-  // Communications of the ACM 5.8 (1962): 434.
-  // Implementation of ray crossings algorithm for point in polygon task solving.
-  // Y coordinate is fixed. Moving the ray on X+ axis starting from given point.
-  // Odd number of intersections with polygon boundaries means the point is inside polygon.
-  const int poly_size = footprint.size();
-  int i, j;  // Polygon vertex iterators
-  bool res = false;  // Final result, initialized with already inverted value
-
-  // Starting from the edge where the last point of polygon is connected to the first
-  i = poly_size - 1;
-  for (j = 0; j < poly_size; j++) {
-    // Checking the edge only if given point is between edge boundaries by Y coordinates.
-    // One of the condition should contain equality in order to exclude the edges
-    // parallel to X+ ray.
-    if ((y <= footprint[i].y) == (y > footprint[j].y)) {
-      // Calculating the intersection coordinate of X+ ray
-      const double x_inter = footprint[i].x +
-        (y - footprint[i].y) * (footprint[j].x - footprint[i].x) /
-        (footprint[j].y - footprint[i].y);
-      // If intersection with checked edge is greater than point.x coordinate, inverting the result
-      if (x_inter > x) {
-        res = !res;
-      }
-    }
-    i = j;
-  }
-  return res;
+  return footprintCost(oriented_footprint, check_full_area);
 }
 
 // declare our valid template parameters
