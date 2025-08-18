@@ -94,7 +94,7 @@ rclcpp::NodeOptions getChildNodeOptions(
 {
   std::vector<std::string> new_arguments = parent_options.arguments();
   replaceOrAddArgument(new_arguments, "-r", "__ns",
-      "__ns:=" + nav2::add_namespaces(parent_namespace, name));
+      "__ns:=" + nav2_util::add_namespaces(parent_namespace, name));
   replaceOrAddArgument(new_arguments, "-r", "__node", name + ":" + "__node:=" + name);
   replaceOrAddArgument(new_arguments, "-p", "use_sim_time",
       "use_sim_time:=" + std::string(use_sim_time ? "true" : "false"));
@@ -106,7 +106,11 @@ Costmap2DROS::Costmap2DROS(
   const std::string & parent_namespace,
   const bool & use_sim_time,
   const rclcpp::NodeOptions & options)
-: nav2::LifecycleNode(name, "",
+: nav2_util::LifecycleNode(name, "",
+    // NodeOption arguments take precedence over the ones provided on the command line
+    // use this to make sure the node is placed on the provided namespace
+    // TODO(orduno) Pass a sub-node instead of creating a new node for better handling
+    //              of the namespaces
     getChildNodeOptions(name, parent_namespace, use_sim_time, options)
 ),
   name_(name),
