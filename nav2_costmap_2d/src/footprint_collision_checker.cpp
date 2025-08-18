@@ -144,7 +144,7 @@ double FootprintCollisionChecker<CostmapT>::footprintAreaCost(const Footprint & 
   unsigned int min_mx, min_my, max_mx, max_my;
   if (!worldToMap(min_x, min_y, min_mx, min_my) ||
       !worldToMap(max_x, max_y, max_mx, max_my)) {
-    return static_cast<double>(LETHAL_OBSTACLE);
+    return static_cast<double>(NO_INFORMATION);
   }
 
   double max_cost = 0.0;
@@ -240,7 +240,7 @@ double FootprintCollisionChecker<CostmapT>::footprintCostAtPose(
     oriented_footprint.push_back(new_pt);
   }
 
-  return footprintCost(oriented_footprint);
+  return footprintAreaCost(oriented_footprint);
 }
 
 template<typename CostmapT>
