@@ -117,6 +117,7 @@ protected:
   rclcpp_action::Client<ActionT>::SharedPtr self_client_;
 
   rclcpp::Time start_time_;
+  rclcpp::Time last_feedback_time_;
   std::string goals_blackboard_id_;
   std::string path_blackboard_id_;
   std::string waypoint_statuses_blackboard_id_;

@@ -20,9 +20,9 @@ WaypointStatus[] waypoint_statuses
 ---
 #feedback definition
 geometry_msgs/PoseStamped current_pose
-builtin_interfaces/Duration navigation_time
-builtin_interfaces/Duration estimated_time_remaining
-int16 number_of_recoveries
-float32 distance_remaining
-int16 number_of_poses_remaining
-WaypointStatus[] waypoint_statuses
+#builtin_interfaces/Duration navigation_time
+#builtin_interfaces/Duration estimated_time_remaining
+#int16 number_of_recoveries
+#float32 distance_remaining
+#int16 number_of_poses_remaining
+uint8[] waypoint_statuses
