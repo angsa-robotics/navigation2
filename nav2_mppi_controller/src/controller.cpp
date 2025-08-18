@@ -16,8 +16,9 @@
 #include <chrono>
 #include "nav2_mppi_controller/controller.hpp"
 #include "nav2_mppi_controller/tools/utils.hpp"
-
-// #define BENCHMARK_TESTING
+#include "nav2_costmap_2d/footprint.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
+#include "std_msgs/msg/header.hpp"
 
 namespace nav2_mppi_controller
 {
@@ -39,6 +40,7 @@ void MPPIController::configure(
   getParam(visualize_, "visualize", false);
 
   getParam(publish_optimal_trajectory_, "publish_optimal_trajectory", false);
+  getParam(publish_optimal_footprints_, "publish_optimal_footprints", false);
 
   // Configure composed objects
   optimizer_.initialize(parent_, name_, costmap_ros_, parameters_handler_.get());
@@ -52,6 +54,11 @@ void MPPIController::configure(
       "~/optimal_trajectory");
   }
 
+  if (publish_optimal_footprints_) {
+    opt_footprints_pub_ = node->create_publisher<visualization_msgs::msg::MarkerArray>(
+      "~/optimal_footprints", rclcpp::SystemDefaultsQoS());
+  }
+
   RCLCPP_INFO(logger_, "Configured MPPI Controller: %s", name_.c_str());
 }
 
@@ -61,6 +68,7 @@ void MPPIController::cleanup()
   trajectory_visualizer_.on_cleanup();
   parameters_handler_.reset();
   opt_traj_pub_.reset();
+  opt_footprints_pub_.reset();
   RCLCPP_INFO(logger_, "Cleaned up MPPI Controller: %s", name_.c_str());
 }
 
@@ -72,6 +80,9 @@ void MPPIController::activate()
   if (opt_traj_pub_) {
     opt_traj_pub_->on_activate();
   }
+  if (opt_footprints_pub_) {
+    opt_footprints_pub_->on_activate();
+  }
   RCLCPP_INFO(logger_, "Activated MPPI Controller: %s", name_.c_str());
 }
 
@@ -80,6 +91,9 @@ void MPPIController::deactivate()
   trajectory_visualizer_.on_deactivate();
   if (opt_traj_pub_) {
     opt_traj_pub_->on_deactivate();
+  }
+  if (opt_footprints_pub_) {
+    opt_footprints_pub_->on_deactivate();
   }
   RCLCPP_INFO(logger_, "Deactivated MPPI Controller: %s", name_.c_str());
 }
@@ -126,6 +140,14 @@ geometry_msgs::msg::TwistStamped MPPIController::computeVelocityCommands(
     opt_traj_pub_->publish(std::move(trajectory_msg));
   }
 
+  if (publish_optimal_footprints_ && opt_footprints_pub_->get_subscription_count() > 0) {
+    if (optimal_trajectory.size() == 0) {
+      optimal_trajectory = optimizer_.getOptimizedTrajectory();
+    }
+    auto footprints_msg = createFootprintMarkers(optimal_trajectory, cmd.header);
+    opt_footprints_pub_->publish(std::move(footprints_msg));
+  }
+
   if (visualize_) {
     visualize(std::move(transformed_plan), cmd.header.stamp, optimal_trajectory);
   }
@@ -156,6 +178,79 @@ void MPPIController::setPlan(const nav_msgs::msg::Path & path)
 void MPPIController::setSpeedLimit(const double & speed_limit, const bool & percentage)
 {
   optimizer_.setSpeedLimit(speed_limit, percentage);
+}
+
+visualization_msgs::msg::MarkerArray MPPIController::createFootprintMarkers(
+  const Eigen::ArrayXXf & trajectory,
+  const std_msgs::msg::Header & header)
+{
+  visualization_msgs::msg::MarkerArray marker_array;
+  
+  if (trajectory.rows() == 0) {
+    return marker_array;
+  }
+
+  // Get robot footprint from costmap
+  auto robot_footprint = costmap_ros_->getRobotFootprint();
+  
+  // Skip if footprint is empty or very small
+  if (robot_footprint.size() < 3) {
+    return marker_array;
+  }
+
+  // Create header with costmap frame
+  std_msgs::msg::Header costmap_header;
+  costmap_header.stamp = header.stamp;
+  costmap_header.frame_id = costmap_ros_->getGlobalFrameID();
+
+  // Sample every N points to avoid too many markers (adjust as needed)
+  const int footprint_downsample_factor = std::max(1, static_cast<int>(trajectory.rows() / 20));
+  
+  int marker_id = 0;
+  for (int i = 0; i < trajectory.rows(); i += footprint_downsample_factor) {
+    double x = trajectory(i, 0);
+    double y = trajectory(i, 1);
+    double theta = trajectory(i, 2);
+    
+    // Create oriented footprint
+    geometry_msgs::msg::PolygonStamped oriented_footprint;
+    oriented_footprint.header = costmap_header;
+    nav2_costmap_2d::transformFootprint(x, y, theta, robot_footprint, oriented_footprint);
+    
+    // Create marker for this footprint
+    visualization_msgs::msg::Marker marker;
+    marker.header = costmap_header;
+    marker.ns = "optimal_footprints";
+    marker.id = marker_id++;
+    marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.orientation.w = 1.0;
+    
+    // Set marker scale and color
+    marker.scale.x = 0.02;  // Line width
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+    marker.color.a = 0.8;
+    
+    // Add footprint points to marker
+    for (const auto & point : oriented_footprint.polygon.points) {
+      geometry_msgs::msg::Point p;
+      p.x = point.x;
+      p.y = point.y;
+      p.z = 0.0;
+      marker.points.push_back(p);
+    }
+    
+    // Close the polygon by adding the first point again
+    if (!marker.points.empty()) {
+      marker.points.push_back(marker.points[0]);
+    }
+    
+    marker_array.markers.push_back(marker);
+  }
+  
+  return marker_array;
 }
 
 }  // namespace nav2_mppi_controller
