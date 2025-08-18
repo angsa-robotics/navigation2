@@ -24,7 +24,7 @@ namespace nav2_bt_navigator
 
 bool
 NavigateThroughPosesNavigator::configure(
-  rclcpp_lifecycle::LifecycleNode::WeakPtr parent_node,
+  nav2::LifecycleNode::WeakPtr parent_node,
   std::shared_ptr<nav2_util::OdomSmoother> odom_smoother)
 {
   auto node = parent_node.lock();
@@ -68,7 +68,6 @@ NavigateThroughPosesNavigator::configure(
 
   goal_sub_ = node->create_subscription<geometry_msgs::msg::PoseStamped>(
     "goal_poses",
-    rclcpp::SystemDefaultsQoS(),
     std::bind(&NavigateThroughPosesNavigator::onGoalPoseReceived, this, std::placeholders::_1));
 
   return true;
@@ -76,7 +75,7 @@ NavigateThroughPosesNavigator::configure(
 
 std::string
 NavigateThroughPosesNavigator::getDefaultBTFilepath(
-  rclcpp_lifecycle::LifecycleNode::WeakPtr parent_node)
+  nav2::LifecycleNode::WeakPtr parent_node)
 {
   std::string default_bt_xml_filename;
   auto node = parent_node.lock();
