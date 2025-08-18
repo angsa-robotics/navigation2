@@ -266,7 +266,6 @@ foreach(bt_plugin ${plugin_libs})
     tf2_ros::tf2_ros
     ${std_msgs_TARGETS}
     ${std_srvs_TARGETS}
-    
   )
   target_compile_definitions(${bt_plugin} PRIVATE BT_PLUGIN_EXPORT)
 endforeach()
