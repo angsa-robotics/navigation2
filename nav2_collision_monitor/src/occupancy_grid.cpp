@@ -16,13 +16,13 @@
 #include <functional>
 #include <cmath>
 #include "tf2/transform_datatypes.h"
-#include "nav2_util/node_utils.hpp"
+#include "nav2_ros_common/node_utils.hpp"
 
 namespace nav2_collision_monitor
 {
 
 OccupancyGridSource::OccupancyGridSource(
-  const nav2_util::LifecycleNode::WeakPtr & node,
+  const nav2::LifecycleNode::WeakPtr & node,
   const std::string & source_name,
   const std::shared_ptr<tf2_ros::Buffer> tf_buffer,
   const std::string & base_frame_id,
@@ -53,9 +53,8 @@ void OccupancyGridSource::configure()
   }
   std::string source_topic;
   getParameters(source_topic);
-  rclcpp::QoS qos = rclcpp::SystemDefaultsQoS();
   data_sub_ = node->create_subscription<nav_msgs::msg::OccupancyGrid>(
-    source_topic, qos,
+    source_topic,
     std::bind(&OccupancyGridSource::dataCallback, this, std::placeholders::_1));
 }
 
@@ -97,7 +96,7 @@ void OccupancyGridSource::getParameters(std::string & source_topic)
     throw std::runtime_error{"Failed to lock node"};
   }
   getCommonParameters(source_topic);
-  nav2_util::declare_parameter_if_not_declared(
+  nav2::declare_parameter_if_not_declared(
     node, source_name_ + ".occupied_threshold", rclcpp::ParameterValue(100));
   occupied_threshold_ = node->get_parameter(source_name_ + ".occupied_threshold").as_int();
 }
