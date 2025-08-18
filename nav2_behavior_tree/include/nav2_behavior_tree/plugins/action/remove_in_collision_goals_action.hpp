@@ -76,9 +76,6 @@ public:
         BT::InputPort<int>(
           "nb_goals_to_consider", 5,
           "Number of goals to consider for collision checking"),
-        BT::InputPort<bool>(
-          "update_status", true,
-          "Whether to update the status of the goals"),
         BT::OutputPort<nav_msgs::msg::Goals>("output_goals",
           "Goals with in-collision goals removed"),
         BT::InputPort<std::vector<nav2_msgs::msg::WaypointStatus>>("input_waypoint_statuses",
@@ -91,7 +88,6 @@ public:
 private:
   bool use_footprint_;
   bool consider_unknown_as_obstacle_;
-  bool update_status_;
   int nb_goals_to_consider_;
   double cost_threshold_;
   nav_msgs::msg::Goals input_goals_;
