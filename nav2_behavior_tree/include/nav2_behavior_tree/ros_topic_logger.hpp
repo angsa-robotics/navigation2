@@ -48,6 +48,7 @@ public:
     logger_ = node->get_logger();
     log_pub_ = node->create_publisher<nav2_msgs::msg::BehaviorTreeLog>(
       "behavior_tree_log");
+    enableTransitionToIdle(false);
   }
 
   /**

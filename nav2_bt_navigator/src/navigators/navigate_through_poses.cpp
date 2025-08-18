@@ -63,6 +63,12 @@ NavigateThroughPosesNavigator::configure(
   bt_action_server_->setGrootMonitoring(
       node->get_parameter(getName() + ".enable_groot_monitoring").as_bool(),
       node->get_parameter(getName() + ".groot_server_port").as_int());
+  self_client_ = rclcpp_action::create_client<ActionT>(node, getName());
+
+  goal_sub_ = node->create_subscription<geometry_msgs::msg::PoseStamped>(
+    "goal_poses",
+    rclcpp::SystemDefaultsQoS(),
+    std::bind(&NavigateThroughPosesNavigator::onGoalPoseReceived, this, std::placeholders::_1));
 
   return true;
 }
@@ -310,6 +316,14 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
       std::move(waypoint_statuses));
 
   return true;
+}
+
+void
+NavigateThroughPosesNavigator::onGoalPoseReceived(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
+{
+  ActionT::Goal goal;
+  goal.poses.goals.push_back(*pose);
+  self_client_->async_send_goal(goal);
 }
 
 }  // namespace nav2_bt_navigator

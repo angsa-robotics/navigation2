@@ -27,11 +27,12 @@ GoalUpdatedCondition::GoalUpdatedCondition(
 
 BT::NodeStatus GoalUpdatedCondition::tick()
 {
-  if (!BT::isStatusActive(status())) {
-    BT::getInputOrBlackboard("goals", goals_);
-    BT::getInputOrBlackboard("goal", goal_);
-    return BT::NodeStatus::FAILURE;
-  }
+  // Since Jazzy, this causes an infinite loop because the status is always IDLE
+  // if (!BT::isStatusActive(status())) {
+  //   BT::getInputOrBlackboard("goals", goals_);
+  //   BT::getInputOrBlackboard("goal", goal_);
+  //   return BT::NodeStatus::FAILURE;
+  // }
 
   nav_msgs::msg::Goals current_goals;
   geometry_msgs::msg::PoseStamped current_goal;
