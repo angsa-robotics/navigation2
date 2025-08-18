@@ -16,6 +16,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav2_ros_common REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 nav2_package()
 
@@ -35,6 +36,7 @@ add_library(${monitor_library_name} SHARED
   src/polygon_source.cpp
   src/range.cpp
   src/kinematics.cpp
+  src/occupancy_grid.cpp
 )
 target_include_directories(${monitor_library_name}
   PUBLIC
@@ -69,6 +71,7 @@ add_library(${detector_library_name} SHARED
   src/polygon_source.cpp
   src/range.cpp
   src/kinematics.cpp
+  src/occupancy_grid.cpp
 )
 target_include_directories(${detector_library_name}
   PUBLIC

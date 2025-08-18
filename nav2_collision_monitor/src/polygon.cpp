@@ -159,6 +159,11 @@ double Polygon::getTimeBeforeCollision() const
   return time_before_collision_;
 }
 
+double Polygon::getMinCollisionDistance() const
+{
+  return min_collision_distance_;
+}
+
 std::vector<std::string> Polygon::getSourcesNames() const
 {
   return sources_names_;
@@ -254,10 +259,12 @@ int Polygon::getPointsInside(
   return num;
 }
 
-double Polygon::getCollisionTime(
+CollisionInfo Polygon::getCollisionTime(
   const std::unordered_map<std::string, std::vector<Point>> & sources_collision_points_map,
   const Velocity & velocity) const
 {
+  CollisionInfo info = {-1.0, 0.0};  // Default: no collision
+  
   // Initial robot pose is {0,0} in base_footprint coordinates
   Pose pose = {0.0, 0.0, 0.0};
   Velocity vel = velocity;
@@ -278,7 +285,9 @@ double Polygon::getCollisionTime(
 
   // Check static polygon
   if (getPointsInside(collision_points) >= min_points_) {
-    return 0.0;
+    info.time = 0.0;
+    info.distance = 0.0;
+    return info;
   }
 
   // Robot movement simulation
@@ -292,12 +301,15 @@ double Polygon::getCollisionTime(
     // If the collision occurred on this stage, return the actual time before a collision
     // as if robot was moved with given velocity
     if (getPointsInside(points_transformed) >= min_points_) {
-      return time;
+      info.time = time;
+      // Calculate distance from origin to collision pose
+      info.distance = std::sqrt(pose.x * pose.x + pose.y * pose.y);
+      return info;
     }
   }
 
   // There is no collision
-  return -1.0;
+  return info;
 }
 
 void Polygon::publish()
@@ -395,6 +407,9 @@ bool Polygon::getCommonParameters(
         node, polygon_name_ + ".simulation_time_step", rclcpp::ParameterValue(0.1));
       simulation_time_step_ =
         node->get_parameter(polygon_name_ + ".simulation_time_step").as_double();
+      nav2_util::declare_parameter_if_not_declared(
+        node, polygon_name_ + ".min_collision_distance", rclcpp::ParameterValue(0.2));
+      min_collision_distance_ = node->get_parameter(polygon_name_ + ".min_collision_distance").as_double();
     }
 
     nav2::declare_parameter_if_not_declared(

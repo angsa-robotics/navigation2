@@ -899,7 +899,8 @@ TEST_F(Tester, testPolygonGetCollisionTime)
   std::unordered_map<std::string, std::vector<nav2_collision_monitor::Point>> points_map;
   points_map.insert({OBSERVATION_SOURCE_NAME, {{0.7, -0.01}, {0.7, 0.01}}});
   // Collision is expected to be ~= 0.2 m / 0.5 m/s seconds
-  EXPECT_NEAR(polygon_->getCollisionTime(points_map, vel), 0.4, SIMULATION_TIME_STEP);
+  nav2_collision_monitor::CollisionInfo info = polygon_->getCollisionTime(points_map, vel);
+  EXPECT_NEAR(info.time, 0.4, SIMULATION_TIME_STEP);
 
   // Backward movement check
   vel = {-0.5, 0.0, 0.0};  // 0.5 m/s backward movement
@@ -907,7 +908,8 @@ TEST_F(Tester, testPolygonGetCollisionTime)
   points_map.clear();
   points_map.insert({OBSERVATION_SOURCE_NAME, {{-0.7, -0.01}, {-0.7, 0.01}}});
   // Collision is expected to be in ~= 0.2 m / 0.5 m/s seconds
-  EXPECT_NEAR(polygon_->getCollisionTime(points_map, vel), 0.4, SIMULATION_TIME_STEP);
+  info = polygon_->getCollisionTime(points_map, vel);
+  EXPECT_NEAR(info.time, 0.4, SIMULATION_TIME_STEP);
 
   // Sideway movement check
   vel = {0.0, 0.5, 0.0};  // 0.5 m/s sideway movement
@@ -915,7 +917,8 @@ TEST_F(Tester, testPolygonGetCollisionTime)
   points_map.clear();
   points_map.insert({OBSERVATION_SOURCE_NAME, {{-0.01, 0.6}, {0.01, 0.6}}});
   // Collision is expected to be in ~= 0.1 m / 0.5 m/s seconds
-  EXPECT_NEAR(polygon_->getCollisionTime(points_map, vel), 0.2, SIMULATION_TIME_STEP);
+  info = polygon_->getCollisionTime(points_map, vel);
+  EXPECT_NEAR(info.time, 0.2, SIMULATION_TIME_STEP);
 
   // Rotation check
   vel = {0.0, 0.0, 1.0};  // 1.0 rad/s rotation
@@ -933,7 +936,8 @@ TEST_F(Tester, testPolygonGetCollisionTime)
   points_map.insert({OBSERVATION_SOURCE_NAME, {{0.49, -0.01}, {0.49, 0.01}}});
   // Collision is expected to be in ~= 45 degrees * M_PI / (180 degrees * 1.0 rad/s) seconds
   double exp_res = 45 / 180 * M_PI;
-  EXPECT_NEAR(polygon_->getCollisionTime(points_map, vel), exp_res, EPSILON);
+  info = polygon_->getCollisionTime(points_map, vel);
+  EXPECT_NEAR(info.time, exp_res, EPSILON);
 
   // Two points are already inside footprint
   vel = {0.5, 0.0, 0.0};  // 0.5 m/s forward movement
@@ -941,7 +945,8 @@ TEST_F(Tester, testPolygonGetCollisionTime)
   points_map.clear();
   points_map.insert({OBSERVATION_SOURCE_NAME, {{0.1, -0.01}, {0.1, 0.01}}});
   // Collision already appeared: collision time should be 0
-  EXPECT_NEAR(polygon_->getCollisionTime(points_map, vel), 0.0, EPSILON);
+  info = polygon_->getCollisionTime(points_map, vel);
+  EXPECT_NEAR(info.time, 0.0, EPSILON);
 
   // All points are out of simulation prediction
   vel = {0.5, 0.0, 0.0};  // 0.5 m/s forward movement
@@ -949,7 +954,8 @@ TEST_F(Tester, testPolygonGetCollisionTime)
   points_map.clear();
   points_map.insert({OBSERVATION_SOURCE_NAME, {{1.1, -0.01}, {1.1, 0.01}}});
   // There is no collision: return value should be negative
-  EXPECT_LT(polygon_->getCollisionTime(points_map, vel), 0.0);
+  info = polygon_->getCollisionTime(points_map, vel);
+  EXPECT_LT(info.time, 0.0);
 }
 
 TEST_F(Tester, testPolygonPublish)
