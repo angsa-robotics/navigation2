@@ -75,12 +75,6 @@ public:
    */
   void onGoalPoseReceived(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
 
-  /**
-   * @brief A subscription and callback to handle the topic-based pose
-   * @param pose Pose received via a topic
-   */
-  void onGoalPoseReceived(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
-
 protected:
   /**
    * @brief A callback to be called when a new goal is received by the BT action server
