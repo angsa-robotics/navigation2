@@ -315,7 +315,6 @@ void VelocitySmoother::smootherTimer()
   }
 
   auto cmd_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
-  cmd_vel->header = command_->header;
 
   if (command_->twist.angular.x == -1) { // twist.angular.x = -1 is just a convention we chose to stop immediately 
     last_cmd_ = geometry_msgs::msg::TwistStamped();
@@ -401,6 +400,7 @@ void VelocitySmoother::smootherTimer()
   cmd_vel->twist.angular.z =
     fabs(cmd_vel->twist.angular.z) < deadband_velocities_[2] ? 0.0 : cmd_vel->twist.angular.z;
 
+  cmd_vel->header.stamp = now();
   last_cmd_ = *cmd_vel;
   smoothed_cmd_pub_->publish(std::move(cmd_vel));
   last_command_time_ = now();
