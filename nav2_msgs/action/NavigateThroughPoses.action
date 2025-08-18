@@ -2,6 +2,7 @@
 #goal definition
 nav_msgs/Goals poses
 string behavior_tree
+WaypointStatus[] waypoint_statuses
 ---
 #result definition
 
