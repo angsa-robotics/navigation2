@@ -480,8 +480,6 @@ void ControllerServer::computeControl()
           for (auto & controller : controllers_) {
             controller.second->reset();
           }
-
-
           return;
         } else {
           RCLCPP_INFO_THROTTLE(

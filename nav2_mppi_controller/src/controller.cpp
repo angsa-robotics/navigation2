@@ -59,6 +59,11 @@ void MPPIController::configure(
       "~/optimal_footprints", rclcpp::SystemDefaultsQoS());
   }
 
+  if (publish_optimal_footprints_) {
+    opt_footprints_pub_ = node->create_publisher<visualization_msgs::msg::MarkerArray>(
+      "~/optimal_footprints", rclcpp::SystemDefaultsQoS());
+  }
+
   RCLCPP_INFO(logger_, "Configured MPPI Controller: %s", name_.c_str());
 }
 

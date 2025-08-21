@@ -50,10 +50,7 @@ void RemoveInCollisionGoals::on_tick()
   request_->use_footprint = use_footprint_;
 
   for (size_t i = 0; i < static_cast<size_t>(nb_goals_to_consider_) && i < input_goals_.goals.size(); ++i) {
-    // create a copy of the goal and set the timestamp to the current time (Angsa Robotics Hack)
-    geometry_msgs::msg::PoseStamped goal_copy = input_goals_.goals[i];
-    goal_copy.header.stamp = node_->now();
-    request_->poses.push_back(goal_copy);
+    request_->poses.push_back(input_goals_.goals[i]);
   }
 }
 
