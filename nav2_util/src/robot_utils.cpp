@@ -46,7 +46,7 @@ bool transformPoseInTargetFrame(
   const geometry_msgs::msg::PoseStamped & input_pose,
   geometry_msgs::msg::PoseStamped & transformed_pose,
   tf2_ros::Buffer & tf_buffer, const std::string target_frame,
-  const double transform_timeout)
+  bool use_latest_time, const double transform_timeout)
 {
   static rclcpp::Logger logger = rclcpp::get_logger("transformPoseInTargetFrame");
 
@@ -56,9 +56,11 @@ bool transformPoseInTargetFrame(
   }
 
   try {
-    transformed_pose = tf_buffer.transform(
-      input_pose, target_frame,
-      tf2::durationFromSec(transform_timeout));
+    auto target_time = use_latest_time ? tf2::TimePointZero : tf2::getTimestamp(input_pose);
+    tf_buffer.transform(
+      input_pose, transformed_pose,
+      target_frame, target_time,
+      input_pose.header.frame_id, tf2::durationFromSec(transform_timeout));
     return true;
   } catch (tf2::LookupException & ex) {
     RCLCPP_ERROR(

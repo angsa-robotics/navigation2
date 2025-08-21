@@ -826,7 +826,7 @@ bool ControllerServer::isGoalReached()
   geometry_msgs::msg::PoseStamped transformed_end_pose;
   nav2_util::transformPoseInTargetFrame(
     end_pose_, transformed_end_pose, *costmap_ros_->getTfBuffer(),
-    costmap_ros_->getGlobalFrameID(), costmap_ros_->getTransformTolerance());
+    costmap_ros_->getGlobalFrameID(), true, costmap_ros_->getTransformTolerance());
 
   return goal_checkers_[current_goal_checker_]->isGoalReached(
     pose.pose, transformed_end_pose.pose,
