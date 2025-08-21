@@ -96,7 +96,7 @@ void SmacPlanner2D::configure(
   // Note that we need to declare it here to prevent the parameter from being declared in the
   // dynamic reconfigure callback
   nav2::declare_parameter_if_not_declared(
-    node, "service_introspection_mode", rclcpp::ParameterValue("disabled"));
+    node, "introspection_mode", rclcpp::ParameterValue("disabled"));
 
   _motion_model = MotionModel::TWOD;
 
@@ -140,12 +140,10 @@ void SmacPlanner2D::configure(
   _smoother->initialize(1e-50 /*No valid minimum turning radius for 2D*/);
 
   // Initialize costmap downsampler
-  if (_downsample_costmap && _downsampling_factor > 1) {
-    std::string topic_name = "downsampled_costmap";
-    _costmap_downsampler = std::make_unique<CostmapDownsampler>();
-    _costmap_downsampler->on_configure(
-      node, _global_frame, topic_name, _costmap, _downsampling_factor);
-  }
+  std::string topic_name = "downsampled_costmap";
+  _costmap_downsampler = std::make_unique<CostmapDownsampler>();
+  _costmap_downsampler->on_configure(
+    node, _global_frame, topic_name, _costmap, _downsampling_factor);
 
   _raw_plan_publisher = node->create_publisher<nav_msgs::msg::Path>("unsmoothed_plan");
 
@@ -215,7 +213,7 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
 
   // Downsample costmap, if required
   nav2_costmap_2d::Costmap2D * costmap = _costmap;
-  if (_costmap_downsampler) {
+  if (_downsample_costmap && _downsampling_factor > 1) {
     costmap = _costmap_downsampler->downsample(_downsampling_factor);
     _collision_checker.setCostmap(costmap);
   }

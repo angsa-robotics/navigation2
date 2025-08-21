@@ -22,9 +22,9 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "nav2_ros_common/lifecycle_node.hpp"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
-#include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/buffer.hpp"
+#include "tf2_ros/transform_listener.hpp"
+#include "tf2_ros/transform_broadcaster.hpp"
 #include "nav2_util/occ_grid_values.hpp"
 #include "nav2_costmap_2d/cost_values.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
@@ -284,7 +284,7 @@ void TestNode::verifyMasterGrid(unsigned char free_value, unsigned char keepout_
 
 void TestNode::testStandardScenario(unsigned char free_value, unsigned char keepout_value)
 {
-  geometry_msgs::msg::Pose2D pose;
+  geometry_msgs::msg::Pose pose;
   // Intersection window: added 4 points
   keepout_filter_->process(*master_grid_, 2, 2, 5, 5, pose);
   keepout_points_.push_back(Point{3, 3});
@@ -308,9 +308,10 @@ void TestNode::testStandardScenario(unsigned char free_value, unsigned char keep
   verifyMasterGrid(free_value, keepout_value);
 }
 
+
 void TestNode::testFramesScenario(unsigned char free_value, unsigned char keepout_value)
 {
-  geometry_msgs::msg::Pose2D pose;
+  geometry_msgs::msg::Pose pose;
   // Intersection window: added all 9 points because of map->odom frame shift
   keepout_filter_->process(*master_grid_, 2, 2, 5, 5, pose);
   keepout_points_.push_back(Point{2, 2});
@@ -382,7 +383,7 @@ TEST_F(TestNode, testFreeKeepout)
   createKeepoutFilter("map");
 
   // Test KeepoutFilter
-  geometry_msgs::msg::Pose2D pose;
+  geometry_msgs::msg::Pose pose;
   // Check whole area window
   keepout_filter_->process(*master_grid_, 0, 0, 10, 10, pose);
   // There should be no one point appeared on master_grid_ after process()
@@ -401,7 +402,7 @@ TEST_F(TestNode, testUnknownKeepout)
   createKeepoutFilter("map");
 
   // Test KeepoutFilter
-  geometry_msgs::msg::Pose2D pose;
+  geometry_msgs::msg::Pose pose;
   // Check whole area window
   keepout_filter_->process(*master_grid_, 0, 0, 10, 10, pose);
   // There should be no one point appeared on master_grid_ after process()

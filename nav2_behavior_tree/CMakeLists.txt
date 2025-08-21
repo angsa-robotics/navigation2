@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8)
 project(nav2_behavior_tree CXX)
 
 find_package(ament_cmake REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(action_msgs REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -30,8 +31,7 @@ add_library(${library_name} SHARED
 target_include_directories(${library_name}
   PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>")
+  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
 target_link_libraries(${library_name} PUBLIC
   ${action_msgs_TARGETS}
   behaviortree_cpp::behaviortree_cpp
@@ -39,12 +39,14 @@ target_link_libraries(${library_name} PUBLIC
   ${nav_msgs_TARGETS}
   ${nav2_msgs_TARGETS}
   nav2_util::nav2_util_core
+  nav2_ros_common::nav2_ros_common
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   rclcpp_lifecycle::rclcpp_lifecycle
   ${sensor_msgs_TARGETS}
   tf2::tf2
   tf2_ros::tf2_ros
+  nav2_ros_common::nav2_ros_common
 )
 
 add_library(nav2_compute_path_to_pose_action_bt_node SHARED plugins/action/compute_path_to_pose_action.cpp)
@@ -212,8 +214,17 @@ list(APPEND plugin_libs nav2_get_current_pose_action_bt_node)
 add_library(nav2_pipeline_sequence_bt_node SHARED plugins/control/pipeline_sequence.cpp)
 list(APPEND plugin_libs nav2_pipeline_sequence_bt_node)
 
+add_library(nav2_nonblocking_sequence_bt_node SHARED plugins/control/nonblocking_sequence.cpp)
+list(APPEND plugin_libs nav2_nonblocking_sequence_bt_node)
+
 add_library(nav2_round_robin_node_bt_node SHARED plugins/control/round_robin_node.cpp)
 list(APPEND plugin_libs nav2_round_robin_node_bt_node)
+
+add_library(nav2_pause_resume_controller_bt_node SHARED plugins/control/pause_resume_controller.cpp)
+list(APPEND plugin_libs nav2_pause_resume_controller_bt_node)
+
+add_library(nav2_persistent_sequence_bt_node SHARED plugins/control/persistent_sequence.cpp)
+list(APPEND plugin_libs nav2_persistent_sequence_bt_node)
 
 add_library(nav2_single_trigger_bt_node SHARED plugins/decorator/single_trigger_node.cpp)
 list(APPEND plugin_libs nav2_single_trigger_bt_node)
@@ -249,8 +260,7 @@ foreach(bt_plugin ${plugin_libs})
   target_include_directories(${bt_plugin}
     PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-    "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>")
+    "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
   target_link_libraries(${bt_plugin} PUBLIC
     angles::angles
     behaviortree_cpp::behaviortree_cpp
@@ -266,6 +276,7 @@ foreach(bt_plugin ${plugin_libs})
     tf2_ros::tf2_ros
     ${std_msgs_TARGETS}
     ${std_srvs_TARGETS}
+    nav2_ros_common::nav2_ros_common
   )
   target_compile_definitions(${bt_plugin} PRIVATE BT_PLUGIN_EXPORT)
 endforeach()
@@ -285,9 +296,10 @@ add_executable(generate_nav2_tree_nodes_xml src/generate_nav2_tree_nodes_xml.cpp
 target_link_libraries(generate_nav2_tree_nodes_xml PRIVATE
   behaviortree_cpp::behaviortree_cpp
   nav2_util::nav2_util_core
+  nav2_ros_common::nav2_ros_common
 )
 # allow generate_nav2_tree_nodes_xml to find plugins_list.hpp
-target_include_directories(generate_nav2_tree_nodes_xml PRIVATE ${GENERATED_DIR} "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>")
+target_include_directories(generate_nav2_tree_nodes_xml PRIVATE ${GENERATED_DIR})
 install(TARGETS generate_nav2_tree_nodes_xml DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/

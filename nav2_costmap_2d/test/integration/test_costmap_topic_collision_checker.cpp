@@ -29,10 +29,10 @@
 #include "nav2_util/robot_utils.hpp"
 #include "nav2_ros_common/node_utils.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
-#include "tf2_ros/create_timer_ros.h"
-#include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/buffer.hpp"
+#include "tf2_ros/transform_listener.hpp"
+#include "tf2_ros/create_timer_ros.hpp"
+#include "tf2_ros/transform_broadcaster.hpp"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #include "tf2/utils.hpp"
@@ -183,10 +183,12 @@ public:
   {
     rclcpp::Time stamp = now();
     publishPose(x, y, theta, stamp);
-    geometry_msgs::msg::Pose2D pose;
-    pose.x = x;
-    pose.y = y;
-    pose.theta = theta;
+
+    geometry_msgs::msg::Pose pose;
+    pose.position.x = x;
+    pose.position.y = y;
+    pose.position.z = 0.0;
+    pose.orientation = nav2_util::geometry_utils::orientationAroundZAxis(theta);
 
     setPose(x, y, theta, stamp);
     publishFootprint();

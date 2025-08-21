@@ -43,7 +43,7 @@ void MPPIController::configure(
   getParam(publish_optimal_footprints_, "publish_optimal_footprints", false);
 
   // Configure composed objects
-  optimizer_.initialize(parent_, name_, costmap_ros_, parameters_handler_.get());
+  optimizer_.initialize(parent_, name_, costmap_ros_, tf_buffer_, parameters_handler_.get());
   path_handler_.initialize(parent_, name_, costmap_ros_, tf_buffer_, parameters_handler_.get());
   trajectory_visualizer_.on_configure(
     parent_, name_,
@@ -125,7 +125,7 @@ geometry_msgs::msg::TwistStamped MPPIController::computeVelocityCommands(
   nav2_costmap_2d::Costmap2D * costmap = costmap_ros_->getCostmap();
   std::unique_lock<nav2_costmap_2d::Costmap2D::mutex_t> costmap_lock(*(costmap->getMutex()));
 
-  geometry_msgs::msg::TwistStamped cmd =
+  auto [cmd, optimal_trajectory] =
     optimizer_.evalControl(robot_pose, robot_speed, transformed_plan, goal, goal_checker);
 
 #ifdef BENCHMARK_TESTING
@@ -134,9 +134,7 @@ geometry_msgs::msg::TwistStamped MPPIController::computeVelocityCommands(
   RCLCPP_INFO(logger_, "Control loop execution time: %ld [ms]", duration);
 #endif
 
-  Eigen::ArrayXXf optimal_trajectory;
   if (publish_optimal_trajectory_ && opt_traj_pub_->get_subscription_count() > 0) {
-    optimal_trajectory = optimizer_.getOptimizedTrajectory();
     auto trajectory_msg = utils::toTrajectoryMsg(
       optimal_trajectory,
       optimizer_.getOptimalControlSequence(),
@@ -166,12 +164,7 @@ void MPPIController::visualize(
   const Eigen::ArrayXXf & optimal_trajectory)
 {
   trajectory_visualizer_.add(optimizer_.getGeneratedTrajectories(), "Candidate Trajectories", cmd_stamp);
-  if (optimal_trajectory.size() > 0) {
-    trajectory_visualizer_.add(optimal_trajectory, "Optimal Trajectory", cmd_stamp);
-  } else {
-    trajectory_visualizer_.add(
-      optimizer_.getOptimizedTrajectory(), "Optimal Trajectory", cmd_stamp);
-  }
+  trajectory_visualizer_.add(optimal_trajectory, "Optimal Trajectory", cmd_stamp);
   trajectory_visualizer_.visualize(std::move(transformed_plan));
 }
 

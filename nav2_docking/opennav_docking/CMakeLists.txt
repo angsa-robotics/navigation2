@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8)
 project(opennav_docking)
 
 find_package(ament_cmake REQUIRED)
 find_package(angles REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_graceful_controller REQUIRED)
@@ -37,11 +38,11 @@ target_include_directories(controller
   PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_link_libraries(controller PUBLIC
   ${geometry_msgs_TARGETS}
   nav2_graceful_controller::nav2_graceful_controller
+  nav2_ros_common::nav2_ros_common
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   ${rcl_interfaces_TARGETS}
@@ -56,7 +57,6 @@ target_include_directories(${library_name}
   PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_link_libraries(${library_name} PUBLIC
   angles::angles
@@ -64,6 +64,7 @@ target_link_libraries(${library_name} PUBLIC
   ${geometry_msgs_TARGETS}
   ${nav2_msgs_TARGETS}
   nav2_util::nav2_util_core
+  nav2_ros_common::nav2_ros_common
   opennav_docking_core::opennav_docking_core
   pluginlib::pluginlib
   rclcpp::rclcpp
@@ -85,10 +86,10 @@ target_include_directories(pose_filter
   PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_link_libraries(pose_filter PUBLIC
   ${geometry_msgs_TARGETS}
+  nav2_ros_common::nav2_ros_common
 )
 target_link_libraries(pose_filter PRIVATE
   rclcpp::rclcpp
@@ -102,9 +103,11 @@ target_include_directories(${executable_name}
   PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
-target_link_libraries(${executable_name} PRIVATE ${library_name} rclcpp::rclcpp)
+target_link_libraries(${executable_name} PRIVATE ${library_name}
+  rclcpp::rclcpp
+  nav2_ros_common::nav2_ros_common
+)
 
 rclcpp_components_register_nodes(${library_name} "opennav_docking::DockingServer")
 
@@ -115,7 +118,6 @@ target_include_directories(simple_charging_dock
   PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_link_libraries(simple_charging_dock PUBLIC
   ${geometry_msgs_TARGETS}
@@ -127,6 +129,7 @@ target_link_libraries(simple_charging_dock PUBLIC
   ${sensor_msgs_TARGETS}
   tf2_geometry_msgs::tf2_geometry_msgs
   tf2_ros::tf2_ros
+  nav2_ros_common::nav2_ros_common
   bondcpp::bondcpp
 )
 target_link_libraries(simple_charging_dock PRIVATE
@@ -143,11 +146,11 @@ target_include_directories(simple_non_charging_dock
   PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-  "$<BUILD_INTERFACE:${nav2_ros_common_INCLUDE_DIRS}>"
 )
 target_link_libraries(simple_non_charging_dock PUBLIC
   ${geometry_msgs_TARGETS}
   opennav_docking_core::opennav_docking_core
+  nav2_ros_common::nav2_ros_common
   pose_filter
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
