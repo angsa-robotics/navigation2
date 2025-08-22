@@ -17,6 +17,10 @@
 
 #include <memory>
 #include <string>
+#include <vector>
+#include <unordered_set>
+#include <utility>
+#include <boost/functional/hash.hpp>
 
 #include "nav2_costmap_2d/inflation_layer.hpp"
 #include "nav2_mppi_controller/collision_checker.hpp"
@@ -48,6 +52,28 @@ public:
   void score(CriticData & data) override;
 
 protected:
+  /**
+   * @brief Get footprint cells at a specific pose using optimized swept area sampling
+   * @param world_x World X coordinate
+   * @param world_y World Y coordinate
+   * @param yaw Robot orientation
+   * @param cells Pre-allocated vector to store cell coordinates (reused for efficiency)
+   */
+  void getFootprintCellsAtPose(float world_x, float world_y, float yaw,
+                               std::vector<std::pair<unsigned int, unsigned int>>& cells) const;
+
+  /**
+   * @brief Get all cells swept by footprint along trajectory segments (optimized)
+   * @param x_coords X coordinates along trajectory
+   * @param y_coords Y coordinates along trajectory  
+   * @param yaw_angles Yaw angles along trajectory
+   * @return Set of unique cell coordinates in swept area
+   */
+  std::unordered_set<std::pair<unsigned int, unsigned int>, 
+                     boost::hash<std::pair<unsigned int, unsigned int>>>
+  getSweptAreaCells(const std::vector<float>& x_coords,
+                    const std::vector<float>& y_coords, 
+                    const std::vector<float>& yaw_angles) const;
   /**
     * @brief An implementation of worldToMap fully using floats
     * @param wx Float world X coord
@@ -99,6 +125,7 @@ protected:
 
   float near_goal_distance_;
   std::string inflation_layer_name_;
+  float swept_area_sample_density_;
 
   unsigned int power_{0};
   bool enforce_path_inversion_{false};
