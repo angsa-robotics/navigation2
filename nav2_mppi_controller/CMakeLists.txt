@@ -110,6 +110,7 @@ target_link_libraries(mppi_critics PUBLIC
   tf2_geometry_msgs::tf2_geometry_msgs
   tf2_ros::tf2_ros
   ${visualization_msgs_TARGETS}
+  mppi_controller
 )
 target_link_libraries(mppi_critics PRIVATE
   pluginlib::pluginlib
