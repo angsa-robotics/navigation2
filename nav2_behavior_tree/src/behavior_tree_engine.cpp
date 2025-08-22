@@ -29,7 +29,8 @@ namespace nav2_behavior_tree
 {
 
 BehaviorTreeEngine::BehaviorTreeEngine(
-  const std::vector<std::string> & plugin_libraries, rclcpp::Node::SharedPtr node)
+  const std::vector<std::string> & plugin_libraries,
+  const nav2::LifecycleNode::SharedPtr node)
 {
   BT::SharedLibrary loader;
   for (const auto & p : plugin_libraries) {
@@ -99,6 +100,13 @@ BehaviorTreeEngine::createTreeFromFile(
   BT::Blackboard::Ptr blackboard)
 {
   return factory_.createTreeFromFile(file_path, blackboard);
+}
+
+/// @brief Register a tree from an XML file and return the tree
+void BehaviorTreeEngine::registerTreeFromFile(
+  const std::string & file_path)
+{
+  factory_.registerBehaviorTreeFromFile(file_path);
 }
 
 void

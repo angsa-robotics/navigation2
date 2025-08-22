@@ -38,7 +38,7 @@
 
 #include "gtest/gtest.h"
 #include "rclcpp/rclcpp.hpp"
-#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/transform_listener.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 #include "nav2_costmap_2d/cost_values.hpp"
 
@@ -162,7 +162,7 @@ void testCallback()
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = nav2_util::LifecycleNode::make_shared("costmap_tester");
+  auto node = nav2::LifecycleNode::make_shared("costmap_tester");
   testing::InitGoogleTest(&argc, argv);
 
   tf_ = new tf2_ros::Buffer(node->get_clock());

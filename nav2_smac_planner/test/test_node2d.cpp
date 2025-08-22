@@ -20,13 +20,13 @@
 #include "rclcpp/rclcpp.hpp"
 #include "nav2_costmap_2d/costmap_2d.hpp"
 #include "nav2_costmap_2d/costmap_subscriber.hpp"
-#include "nav2_util/lifecycle_node.hpp"
+#include "nav2_ros_common/lifecycle_node.hpp"
 #include "nav2_smac_planner/node_2d.hpp"
 #include "nav2_smac_planner/collision_checker.hpp"
 
 TEST(Node2DTest, test_node_2d)
 {
-  auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test");
+  auto node = std::make_shared<nav2::LifecycleNode>("test");
   nav2_costmap_2d::Costmap2D costmapA(10, 10, 0.05, 0.0, 0.0, 0);
 
   // Convert raw costmap into a costmap ros object
@@ -67,8 +67,10 @@ TEST(Node2DTest, test_node_2d)
 
   // check heuristic cost computation
   nav2_smac_planner::Node2D::Coordinates A(0.0, 0.0);
+  nav2_smac_planner::Node2D::CoordinateVector B_vec;
   nav2_smac_planner::Node2D::Coordinates B(10.0, 5.0);
-  EXPECT_NEAR(testB.getHeuristicCost(A, B), 11.18, 0.02);
+  B_vec.push_back(B);
+  EXPECT_NEAR(testB.getHeuristicCost(A, B_vec), 11.18, 0.02);
 
   // check operator== works on index
   unsigned char costC = '2';
@@ -101,7 +103,7 @@ TEST(Node2DTest, test_node_2d)
 
 TEST(Node2DTest, test_node_2d_neighbors)
 {
-  auto lnode = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test");
+  auto lnode = std::make_shared<nav2::LifecycleNode>("test");
   nav2_smac_planner::SearchInfo info;
   unsigned int size_x = 10u;
   unsigned int size_y = 10u;

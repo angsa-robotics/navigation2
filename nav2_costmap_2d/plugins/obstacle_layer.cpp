@@ -100,6 +100,8 @@ void ObstacleLayer::onInitialize()
   node->get_parameter("track_unknown_space", track_unknown_space);
   node->get_parameter("transform_tolerance", transform_tolerance);
   node->get_parameter(name_ + "." + "observation_sources", topics_string);
+  double tf_filter_tolerance = nav2::declare_or_get_parameter(node, name_ + "." +
+      "tf_filter_tolerance", 0.05);
 
   int combination_method_param{};
   node->get_parameter(name_ + "." + "combination_method", combination_method_param);
@@ -139,7 +141,7 @@ void ObstacleLayer::onInitialize()
   while (ss >> source) {
     // get the parameters for the specific topic
     double observation_keep_time, expected_update_rate, min_obstacle_height, max_obstacle_height;
-    std::string topic, sensor_frame, data_type;
+    std::string topic, sensor_frame, data_type, transport_type;
     bool inf_is_valid, clearing, marking;
 
     declareParameter(source + "." + "topic", rclcpp::ParameterValue(source));
@@ -156,6 +158,7 @@ void ObstacleLayer::onInitialize()
     declareParameter(source + "." + "obstacle_min_range", rclcpp::ParameterValue(0.0));
     declareParameter(source + "." + "raytrace_max_range", rclcpp::ParameterValue(3.0));
     declareParameter(source + "." + "raytrace_min_range", rclcpp::ParameterValue(0.0));
+    declareParameter(source + "." + "transport_type", rclcpp::ParameterValue(std::string("raw")));
 
     node->get_parameter(name_ + "." + source + "." + "topic", topic);
     node->get_parameter(name_ + "." + source + "." + "sensor_frame", sensor_frame);
@@ -171,6 +174,7 @@ void ObstacleLayer::onInitialize()
     node->get_parameter(name_ + "." + source + "." + "inf_is_valid", inf_is_valid);
     node->get_parameter(name_ + "." + source + "." + "marking", marking);
     node->get_parameter(name_ + "." + source + "." + "clearing", clearing);
+    node->get_parameter(name_ + "." + source + "." + "transport_type", transport_type);
 
     if (!(data_type == "PointCloud2" || data_type == "LaserScan")) {
       RCLCPP_FATAL(
@@ -227,7 +231,7 @@ void ObstacleLayer::onInitialize()
       source.c_str(), topic.c_str(),
       global_frame_.c_str(), expected_update_rate, observation_keep_time);
 
-    const auto custom_qos_profile = rclcpp::SensorDataQoS().keep_last(50);
+    const auto custom_qos_profile = nav2::qos::SensorDataQoS(50);
 
     // create a callback for the topic
     if (data_type == "LaserScan") {
@@ -246,12 +250,15 @@ void ObstacleLayer::onInitialize()
       // For Jazzy compatibility in Message Filters API change
       #elif RCLCPP_VERSION_GTE(29, 0, 0)
       sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan,
-          rclcpp_lifecycle::LifecycleNode>>(node, topic, custom_qos_profile, sub_opt);
+          rclcpp_lifecycle::LifecycleNode>>(
+        std::static_pointer_cast<rclcpp_lifecycle::LifecycleNode>(node),
+        topic, custom_qos_profile, sub_opt);
       // For Humble and Older compatibility in Message Filters API change
       #else
       sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan,
           rclcpp_lifecycle::LifecycleNode>>(
-          node, topic, custom_qos_profile.get_rmw_qos_profile(), sub_opt);
+        std::static_pointer_cast<rclcpp_lifecycle::LifecycleNode>(node),
+        topic, custom_qos_profile.get_rmw_qos_profile(), sub_opt);
       #endif
 
       sub->unsubscribe();
@@ -278,30 +285,41 @@ void ObstacleLayer::onInitialize()
       observation_subscribers_.push_back(sub);
 
       observation_notifiers_.push_back(filter);
-      observation_notifiers_.back()->setTolerance(rclcpp::Duration::from_seconds(0.05));
+      observation_notifiers_.back()->setTolerance(rclcpp::Duration::from_seconds(
+          tf_filter_tolerance));
 
     } else {
+      // For Rolling and Newer Support from PointCloudTransport API change
+      #if RCLCPP_VERSION_GTE(30, 0, 0)
+      std::shared_ptr<point_cloud_transport::SubscriberFilter> sub;
       // For Kilted and Older Support from Message Filters API change
-      #if RCLCPP_VERSION_GTE(29, 6, 0)
+      #elif RCLCPP_VERSION_GTE(29, 6, 0)
       std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>> sub;
       #else
       std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2,
         rclcpp_lifecycle::LifecycleNode>> sub;
       #endif
 
+      // For Rolling compatibility in PointCloudTransport API change
+      #if RCLCPP_VERSION_GTE(30, 0, 0)
+      sub = std::make_shared<point_cloud_transport::SubscriberFilter>(
+        *node, topic, transport_type, custom_qos_profile, sub_opt);
       // For Kilted compatibility in Message Filters API change
-      #if RCLCPP_VERSION_GTE(29, 6, 0)
+      #elif RCLCPP_VERSION_GTE(29, 6, 0)
       sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>>(
         node, topic, custom_qos_profile, sub_opt);
       // For Jazzy compatibility in Message Filters API change
       #elif RCLCPP_VERSION_GTE(29, 0, 0)
       sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2,
-          rclcpp_lifecycle::LifecycleNode>>(node, topic, custom_qos_profile, sub_opt);
+          rclcpp_lifecycle::LifecycleNode>>(
+        std::static_pointer_cast<rclcpp_lifecycle::LifecycleNode>(node),
+        topic, custom_qos_profile, sub_opt);
       // For Humble and Older compatibility in Message Filters API change
       #else
       sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2,
           rclcpp_lifecycle::LifecycleNode>>(
-          node, topic, custom_qos_profile.get_rmw_qos_profile(), sub_opt);
+        std::static_pointer_cast<rclcpp_lifecycle::LifecycleNode>(node),
+        topic, custom_qos_profile.get_rmw_qos_profile(), sub_opt);
       #endif
 
       sub->unsubscribe();

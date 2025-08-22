@@ -60,7 +60,7 @@ public:
    * @param costmap_ros Costmap2DROS object of environment
    */
   void configure(
-    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+    const nav2::LifecycleNode::WeakPtr & parent,
     std::string name, std::shared_ptr<tf2_ros::Buffer> tf,
     std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
 
@@ -107,6 +107,24 @@ public:
   void setSpeedLimit(const double & speed_limit, const bool & percentage) override;
 
 protected:
+  /**
+   * @brief Validate a given target pose for calculating command velocity
+   * @param target_pose Target pose to validate
+   * @param dist_to_target Distance to target pose
+   * @param dist_to_goal Distance to navigation goal
+   * @param trajectory Trajectory to validate in simulation
+   * @param costmap_transform Transform between global and local costmap
+   * @param cmd_vel Initial command velocity to validate in simulation
+   * @return true if target pose is valid, false otherwise
+   */
+  bool validateTargetPose(
+    geometry_msgs::msg::PoseStamped & target_pose,
+    double dist_to_target,
+    double dist_to_goal,
+    nav_msgs::msg::Path & trajectory,
+    geometry_msgs::msg::TransformStamped & costmap_transform,
+    geometry_msgs::msg::TwistStamped & cmd_vel);
+
   /**
    * @brief Simulate trajectory calculating in every step the new velocity command based on
    * a new curvature value and checking for collisions.
@@ -171,12 +189,10 @@ protected:
   // True from the time a new path arrives until we have completed an initial rotation
   bool do_initial_rotation_;
 
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> transformed_plan_pub_;
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> local_plan_pub_;
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::PoseStamped>>
-  motion_target_pub_;
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::Marker>>
-  slowdown_pub_;
+  nav2::Publisher<nav_msgs::msg::Path>::SharedPtr transformed_plan_pub_;
+  nav2::Publisher<nav_msgs::msg::Path>::SharedPtr local_plan_pub_;
+  nav2::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr motion_target_pub_;
+  nav2::Publisher<visualization_msgs::msg::Marker>::SharedPtr slowdown_pub_;
   std::unique_ptr<nav2_graceful_controller::PathHandler> path_handler_;
   std::unique_ptr<nav2_graceful_controller::ParameterHandler> param_handler_;
   std::unique_ptr<nav2_graceful_controller::SmoothControlLaw> control_law_;

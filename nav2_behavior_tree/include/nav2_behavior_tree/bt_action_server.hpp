@@ -24,10 +24,8 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav2_behavior_tree/behavior_tree_engine.hpp"
 #include "nav2_behavior_tree/ros_topic_logger.hpp"
-#include "nav2_util/lifecycle_node.hpp"
-#include "nav2_util/simple_action_server.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "nav2_ros_common/lifecycle_node.hpp"
+#include "nav2_ros_common/simple_action_server.hpp"
 
 namespace nav2_behavior_tree
 {
@@ -35,11 +33,11 @@ namespace nav2_behavior_tree
  * @class nav2_behavior_tree::BtActionServer
  * @brief An action server that uses behavior tree to execute an action
  */
-template<class ActionT>
+template<class ActionT, class NodeT>
 class BtActionServer
 {
 public:
-  using ActionServer = nav2_util::SimpleActionServer<ActionT>;
+  using ActionServer = nav2::SimpleActionServer<ActionT>;
 
   typedef std::function<bool (typename ActionT::Goal::ConstSharedPtr)> OnGoalReceivedCallback;
   typedef std::function<void ()> OnLoopCallback;
@@ -51,10 +49,11 @@ public:
    * @brief A constructor for nav2_behavior_tree::BtActionServer class
    */
   explicit BtActionServer(
-    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+    const typename NodeT::WeakPtr & parent,
     const std::string & action_name,
     const std::vector<std::string> & plugin_lib_names,
     const std::string & default_bt_xml_filename,
+    const std::vector<std::string> & search_directories,
     OnGoalReceivedCallback on_goal_received_callback,
     OnLoopCallback on_loop_callback,
     OnPreemptCallback on_preempt_callback,
@@ -104,7 +103,8 @@ public:
    * @return bool true if the resulting BT correspond to the one in bt_xml_filename. false
    * if something went wrong, and previous BT is maintained
    */
-  bool loadBehaviorTree(const std::string & bt_xml_filename = "");
+  bool loadBehaviorTree(
+    const std::string & bt_xml_filename = "");
 
   /**
    * @brief Getter function for BT Blackboard
@@ -236,7 +236,7 @@ protected:
   std::string action_name_;
 
   // Our action server implements the template action
-  std::shared_ptr<ActionServer> action_server_;
+  typename ActionServer::SharedPtr action_server_;
 
   // Behavior Tree to be executed when goal is received
   BT::Tree tree_;
@@ -247,6 +247,7 @@ protected:
   // The XML file that contains the Behavior Tree to create
   std::string current_bt_xml_filename_;
   std::string default_bt_xml_filename_;
+  std::vector<std::string> search_directories_;
 
   // The wrapper class for the BT functionality
   std::unique_ptr<nav2_behavior_tree::BehaviorTreeEngine> bt_;
@@ -258,10 +259,10 @@ protected:
   std::vector<std::string> error_code_name_prefixes_;
 
   // A regular, non-spinning ROS node that we can use for calls to the action client
-  rclcpp::Node::SharedPtr client_node_;
+  nav2::LifecycleNode::SharedPtr client_node_;
 
   // Parent node
-  rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
+  typename NodeT::WeakPtr node_;
 
   // Clock
   rclcpp::Clock::SharedPtr clock_;

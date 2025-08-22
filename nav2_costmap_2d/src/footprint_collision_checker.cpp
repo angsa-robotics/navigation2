@@ -235,6 +235,13 @@ bool FootprintCollisionChecker<CostmapT>::worldToMap(
 template<typename CostmapT>
 double FootprintCollisionChecker<CostmapT>::pointCost(int x, int y) const
 {
+  // Bounds checking to prevent segmentation faults
+  if (x < 0 || y < 0 || 
+      x >= static_cast<int>(costmap_->getSizeInCellsX()) || 
+      y >= static_cast<int>(costmap_->getSizeInCellsY())) {
+    return static_cast<double>(LETHAL_OBSTACLE);
+  }
+  
   return static_cast<double>(costmap_->getCost(x, y));
 }
 

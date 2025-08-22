@@ -18,11 +18,14 @@ from typing import Optional
 
 from geometry_msgs.msg import (PoseWithCovarianceStamped, Quaternion, TransformStamped, Twist,
                                TwistStamped, Vector3)
+from nav2_loopback_sim.utils import (addYawToQuat, getMapOccupancy, matrixToTransform,
+                                     transformStampedToMatrix, worldToMap)
 from nav2_simple_commander.line_iterator import LineIterator
 from nav_msgs.msg import Odometry
 from nav_msgs.srv import GetMap
 import numpy as np
 import rclpy
+from rclpy.client import Client
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -31,9 +34,6 @@ from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import LaserScan
 from tf2_ros import Buffer, TransformBroadcaster, TransformListener
 import tf_transformations
-
-from .utils import (addYawToQuat, getMapOccupancy, matrixToTransform, transformStampedToMatrix,
-                    worldToMap)
 
 """
 This is a loopback simulator that replaces a physics simulator to create a
@@ -144,7 +144,8 @@ class LoopbackSimulator(Node):
 
         self.setupTimer = self.create_timer(0.1, self.setupTimerCallback)
 
-        self.map_client = self.create_client(GetMap, '/map_server/map')
+        self.map_client: Client[GetMap.Request, GetMap.Response] = \
+            self.create_client(GetMap, '/map_server/map')
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -313,12 +314,12 @@ class LoopbackSimulator(Node):
                 self.map = result.map
                 self.get_logger().info('Laser scan will be populated using map data')
             else:
-                self.get_logger().warn(
+                self.get_logger().warning(
                     'Failed to get map, '
                     'Laser scan will be populated using max range'
                 )
         else:
-            self.get_logger().warn(
+            self.get_logger().warning(
                 'Failed to get map, '
                 'Laser scan will be populated using max range'
             )

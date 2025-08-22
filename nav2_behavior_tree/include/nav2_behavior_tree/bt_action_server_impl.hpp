@@ -26,25 +26,27 @@
 
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "nav2_behavior_tree/bt_action_server.hpp"
-#include "nav2_util/node_utils.hpp"
+#include "nav2_ros_common/node_utils.hpp"
 #include "rcl_action/action_server.h"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "nav2_ros_common/lifecycle_node.hpp"
 
 namespace nav2_behavior_tree
 {
 
-template<class ActionT>
-BtActionServer<ActionT>::BtActionServer(
-  const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+template<class ActionT, class NodeT>
+BtActionServer<ActionT, NodeT>::BtActionServer(
+  const typename NodeT::WeakPtr & parent,
   const std::string & action_name,
   const std::vector<std::string> & plugin_lib_names,
   const std::string & default_bt_xml_filename,
+  const std::vector<std::string> & search_directories,
   OnGoalReceivedCallback on_goal_received_callback,
   OnLoopCallback on_loop_callback,
   OnPreemptCallback on_preempt_callback,
   OnCompletionCallback on_completion_callback)
 : action_name_(action_name),
   default_bt_xml_filename_(default_bt_xml_filename),
+  search_directories_(search_directories),
   plugin_lib_names_(plugin_lib_names),
   node_(parent),
   on_goal_received_callback_(on_goal_received_callback),
@@ -121,12 +123,12 @@ BtActionServer<ActionT>::BtActionServer(
   }
 }
 
-template<class ActionT>
-BtActionServer<ActionT>::~BtActionServer()
+template<class ActionT, class NodeT>
+BtActionServer<ActionT, NodeT>::~BtActionServer()
 {}
 
-template<class ActionT>
-bool BtActionServer<ActionT>::on_configure()
+template<class ActionT, class NodeT>
+bool BtActionServer<ActionT, NodeT>::on_configure()
 {
   auto node = node_.lock();
   if (!node) {
@@ -137,36 +139,33 @@ bool BtActionServer<ActionT>::on_configure()
   std::string client_node_name = action_name_;
   std::replace(client_node_name.begin(), client_node_name.end(), '/', '_');
   // Use suffix '_rclcpp_node' to keep parameter file consistency #1773
-  auto options = rclcpp::NodeOptions().arguments(
-    {"--ros-args",
-      "-r",
-      std::string("__node:=") +
-      std::string(node->get_name()) + "_" + client_node_name + "_rclcpp_node",
-      "-p",
-      "use_sim_time:=" +
-      std::string(node->get_parameter("use_sim_time").as_bool() ? "true" : "false"),
-      "--"});
+
+  auto new_arguments = node->get_node_options().arguments();
+  nav2::replaceOrAddArgument(new_arguments, "-r", "__node", std::string("__node:=") +
+    std::string(node->get_name()) + "_" + client_node_name + "_rclcpp_node");
+  auto options = node->get_node_options();
+  options = options.arguments(new_arguments);
 
   // Support for handling the topic-based goal pose from rviz
-  client_node_ = std::make_shared<rclcpp::Node>("_", options);
+  client_node_ = std::make_shared<nav2::LifecycleNode>("_", options);
+  client_node_->configure();
+  client_node_->activate();
 
   // Declare parameters for common client node applications to share with BT nodes
   // Declare if not declared in case being used an external application, then copying
   // all of the main node's parameters to the client for BT nodes to obtain
-  nav2_util::declare_parameter_if_not_declared(
+  nav2::declare_parameter_if_not_declared(
     node, "global_frame", rclcpp::ParameterValue(std::string("map")));
-  nav2_util::declare_parameter_if_not_declared(
+  nav2::declare_parameter_if_not_declared(
     node, "robot_base_frame", rclcpp::ParameterValue(std::string("base_link")));
-  nav2_util::declare_parameter_if_not_declared(
+  nav2::declare_parameter_if_not_declared(
     node, "transform_tolerance", rclcpp::ParameterValue(0.1));
   rclcpp::copy_all_parameter_values(node, client_node_);
 
-  action_server_ = std::make_shared<ActionServer>(
-    node->get_node_base_interface(),
-    node->get_node_clock_interface(),
-    node->get_node_logging_interface(),
-    node->get_node_waitables_interface(),
-    action_name_, std::bind(&BtActionServer<ActionT>::executeCallback, this),
+  // Could be using a user rclcpp::Node, so need to use the Nav2 factory to create the subscription
+  // to convert nav2::LifecycleNode, rclcpp::Node or rclcpp_lifecycle::LifecycleNode
+  action_server_ = nav2::interfaces::create_action_server<ActionT>(
+    node, action_name_, std::bind(&BtActionServer<ActionT, NodeT>::executeCallback, this),
     nullptr, std::chrono::milliseconds(500), false);
 
   // Get parameters for BT timeouts
@@ -191,7 +190,7 @@ bool BtActionServer<ActionT>::on_configure()
   blackboard_ = BT::Blackboard::create();
 
   // Put items on the blackboard
-  blackboard_->set<rclcpp::Node::SharedPtr>("node", client_node_);  // NOLINT
+  blackboard_->set<nav2::LifecycleNode::SharedPtr>("node", client_node_);  // NOLINT
   blackboard_->set<std::chrono::milliseconds>("server_timeout", default_server_timeout_);  // NOLINT
   blackboard_->set<std::chrono::milliseconds>("bt_loop_duration", bt_loop_duration_);  // NOLINT
   blackboard_->set<std::chrono::milliseconds>(
@@ -201,8 +200,8 @@ bool BtActionServer<ActionT>::on_configure()
   return true;
 }
 
-template<class ActionT>
-bool BtActionServer<ActionT>::on_activate()
+template<class ActionT, class NodeT>
+bool BtActionServer<ActionT, NodeT>::on_activate()
 {
   resetInternalError();
   if (!loadBehaviorTree(default_bt_xml_filename_)) {
@@ -213,16 +212,18 @@ bool BtActionServer<ActionT>::on_activate()
   return true;
 }
 
-template<class ActionT>
-bool BtActionServer<ActionT>::on_deactivate()
+template<class ActionT, class NodeT>
+bool BtActionServer<ActionT, NodeT>::on_deactivate()
 {
   action_server_->deactivate();
   return true;
 }
 
-template<class ActionT>
-bool BtActionServer<ActionT>::on_cleanup()
+template<class ActionT, class NodeT>
+bool BtActionServer<ActionT, NodeT>::on_cleanup()
 {
+  client_node_->deactivate();
+  client_node_->cleanup();
   client_node_.reset();
   action_server_.reset();
   topic_logger_.reset();
@@ -235,16 +236,20 @@ bool BtActionServer<ActionT>::on_cleanup()
   return true;
 }
 
-template<class ActionT>
-void BtActionServer<ActionT>::setGrootMonitoring(const bool enable, const unsigned server_port)
+template<class ActionT, class NodeT>
+void BtActionServer<ActionT, NodeT>::setGrootMonitoring(
+  const bool enable,
+  const unsigned server_port)
 {
   enable_groot_monitoring_ = enable;
   groot_server_port_ = server_port;
 }
 
-template<class ActionT>
-bool BtActionServer<ActionT>::loadBehaviorTree(const std::string & bt_xml_filename)
+template<class ActionT, class NodeT>
+bool BtActionServer<ActionT, NodeT>::loadBehaviorTree(const std::string & bt_xml_filename)
 {
+  namespace fs = std::filesystem;
+
   // Empty filename is default for backward compatibility
   auto filename = bt_xml_filename.empty() ? default_bt_xml_filename_ : bt_xml_filename;
 
@@ -254,19 +259,38 @@ bool BtActionServer<ActionT>::loadBehaviorTree(const std::string & bt_xml_filena
     return true;
   }
 
-  // if a new tree is created, than the Groot2 Publisher must be destroyed
+  // Reset any existing Groot2 monitoring
   bt_->resetGrootMonitor();
 
-  // Read the input BT XML from the specified file into a string
   std::ifstream xml_file(filename);
-
   if (!xml_file.good()) {
     setInternalError(ActionT::Result::FAILED_TO_LOAD_BEHAVIOR_TREE,
-      "Couldn't open input XML file: " + filename);
+      "Couldn't open BT XML file: " + filename);
     return false;
   }
 
-  // Create the Behavior Tree from the XML input
+  const auto canonical_main_bt = fs::canonical(filename);
+
+  // Register all XML behavior Subtrees found in the given directories
+  for (const auto & directory : search_directories_) {
+    try {
+      for (const auto & entry : fs::directory_iterator(directory)) {
+        if (entry.path().extension() == ".xml") {
+          // Skip registering the main tree file
+          if (fs::equivalent(fs::canonical(entry.path()), canonical_main_bt)) {
+            continue;
+          }
+          bt_->registerTreeFromFile(entry.path().string());
+        }
+      }
+    } catch (const std::exception & e) {
+      setInternalError(ActionT::Result::FAILED_TO_LOAD_BEHAVIOR_TREE,
+        "Exception reading behavior tree directory: " + std::string(e.what()));
+      return false;
+    }
+  }
+
+  // Try to load the main BT tree
   try {
     tree_ = bt_->createTreeFromFile(filename, blackboard_);
     for (auto & subtree : tree_.subtrees) {
@@ -280,15 +304,15 @@ bool BtActionServer<ActionT>::loadBehaviorTree(const std::string & bt_xml_filena
     }
   } catch (const std::exception & e) {
     setInternalError(ActionT::Result::FAILED_TO_LOAD_BEHAVIOR_TREE,
-      std::string("Exception when loading BT: ") + e.what());
+      std::string("Exception when creating BT tree from file: ") + e.what());
     return false;
   }
 
+  // Optional logging and monitoring
   topic_logger_ = std::make_unique<RosTopicLogger>(client_node_, tree_);
 
   current_bt_xml_filename_ = filename;
 
-  // Enable monitoring with Groot2
   if (enable_groot_monitoring_) {
     bt_->addGrootMonitoring(&tree_, groot_server_port_);
     RCLCPP_DEBUG(
@@ -299,8 +323,8 @@ bool BtActionServer<ActionT>::loadBehaviorTree(const std::string & bt_xml_filena
   return true;
 }
 
-template<class ActionT>
-void BtActionServer<ActionT>::executeCallback()
+template<class ActionT, class NodeT>
+void BtActionServer<ActionT, NodeT>::executeCallback()
 {
   if (!on_goal_received_callback_(action_server_->get_current_goal())) {
     // Give server an opportunity to populate the result message
@@ -368,8 +392,10 @@ void BtActionServer<ActionT>::executeCallback()
   cleanErrorCodes();
 }
 
-template<class ActionT>
-void BtActionServer<ActionT>::setInternalError(uint16_t error_code, const std::string & error_msg)
+template<class ActionT, class NodeT>
+void BtActionServer<ActionT, NodeT>::setInternalError(
+  uint16_t error_code,
+  const std::string & error_msg)
 {
   internal_error_code_ = error_code;
   internal_error_msg_ = error_msg;
@@ -377,15 +403,15 @@ void BtActionServer<ActionT>::setInternalError(uint16_t error_code, const std::s
     internal_error_code_, internal_error_msg_.c_str());
 }
 
-template<class ActionT>
-void BtActionServer<ActionT>::resetInternalError(void)
+template<class ActionT, class NodeT>
+void BtActionServer<ActionT, NodeT>::resetInternalError(void)
 {
   internal_error_code_ = ActionT::Result::NONE;
   internal_error_msg_ = "";
 }
 
-template<class ActionT>
-bool BtActionServer<ActionT>::populateInternalError(
+template<class ActionT, class NodeT>
+bool BtActionServer<ActionT, NodeT>::populateInternalError(
   typename std::shared_ptr<typename ActionT::Result> result)
 {
   if (internal_error_code_ != ActionT::Result::NONE) {
@@ -396,8 +422,8 @@ bool BtActionServer<ActionT>::populateInternalError(
   return false;
 }
 
-template<class ActionT>
-void BtActionServer<ActionT>::populateErrorCode(
+template<class ActionT, class NodeT>
+void BtActionServer<ActionT, NodeT>::populateErrorCode(
   typename std::shared_ptr<typename ActionT::Result> result)
 {
   int highest_priority_error_code = std::numeric_limits<int>::max();
@@ -432,8 +458,8 @@ void BtActionServer<ActionT>::populateErrorCode(
   }
 }
 
-template<class ActionT>
-void BtActionServer<ActionT>::cleanErrorCodes()
+template<class ActionT, class NodeT>
+void BtActionServer<ActionT, NodeT>::cleanErrorCodes()
 {
   std::string name;
   for (const auto & error_code_name_prefix : error_code_name_prefixes_) {

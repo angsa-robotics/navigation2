@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(nav2_theta_star_planner)
 
 find_package(ament_cmake REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(nav2_core REQUIRED)
@@ -13,6 +14,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(nav2_ros_common REQUIRED)
 
 nav2_package()
 
@@ -29,6 +31,7 @@ target_include_directories(${library_name}
 target_link_libraries(${library_name} PUBLIC
   ${geometry_msgs_TARGETS}
   nav2_core::nav2_core
+  nav2_ros_common::nav2_ros_common
   nav2_costmap_2d::nav2_costmap_2d_core
   nav2_util::nav2_util_core
   ${nav_msgs_TARGETS}
@@ -88,6 +91,7 @@ ament_export_dependencies(
   nav_msgs
   rclcpp
   rclcpp_lifecycle
+  nav2_ros_common
   rcl_interfaces
   tf2_ros
 )

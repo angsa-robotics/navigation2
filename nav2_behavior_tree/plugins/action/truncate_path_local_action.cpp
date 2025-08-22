@@ -25,8 +25,8 @@
 #include "nav_msgs/msg/path.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/LinearMath/Quaternion.hpp"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/create_timer_ros.h"
+#include "tf2_ros/buffer.hpp"
+#include "tf2_ros/create_timer_ros.hpp"
 
 #include "nav2_behavior_tree/plugins/action/truncate_path_local_action.hpp"
 
@@ -116,7 +116,7 @@ inline bool TruncatePathLocal::getRobotPose(
     std::string robot_frame;
     if (!getInput("robot_frame", robot_frame)) {
       RCLCPP_ERROR(
-        config().blackboard->get<rclcpp::Node::SharedPtr>("node")->get_logger(),
+        config().blackboard->get<nav2::LifecycleNode::SharedPtr>("node")->get_logger(),
         "Neither pose nor robot_frame specified for %s", name().c_str());
       return false;
     }
@@ -126,7 +126,7 @@ inline bool TruncatePathLocal::getRobotPose(
         pose, *tf_buffer_, path_frame_id, robot_frame, transform_tolerance))
     {
       RCLCPP_WARN(
-        config().blackboard->get<rclcpp::Node::SharedPtr>("node")->get_logger(),
+        config().blackboard->get<nav2::LifecycleNode::SharedPtr>("node")->get_logger(),
         "Failed to lookup current robot pose for %s", name().c_str());
       return false;
     }

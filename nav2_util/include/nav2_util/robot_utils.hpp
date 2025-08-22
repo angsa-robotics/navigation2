@@ -26,7 +26,7 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "tf2/time.hpp"
 #include "tf2/transform_datatypes.hpp"
-#include "tf2_ros/buffer.h"
+#include "tf2_ros/buffer.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -60,6 +60,7 @@ bool transformPoseInTargetFrame(
   const geometry_msgs::msg::PoseStamped & input_pose,
   geometry_msgs::msg::PoseStamped & transformed_pose,
   tf2_ros::Buffer & tf_buffer, const std::string target_frame,
+  bool use_latest_time = false,
   const double transform_timeout = 0.1);
 
 /**

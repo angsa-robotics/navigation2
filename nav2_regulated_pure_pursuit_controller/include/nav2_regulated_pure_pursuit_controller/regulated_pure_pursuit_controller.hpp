@@ -23,10 +23,10 @@
 #include <mutex>
 
 #include "nav2_core/controller.hpp"
-#include "rclcpp/rclcpp.hpp"
+#include "nav2_ros_common/lifecycle_node.hpp"
 #include "pluginlib/class_loader.hpp"
 #include "pluginlib/class_list_macros.hpp"
-#include "geometry_msgs/msg/pose2_d.hpp"
+#include "geometry_msgs/msg/pose.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "nav2_regulated_pure_pursuit_controller/path_handler.hpp"
 #include "nav2_regulated_pure_pursuit_controller/collision_checker.hpp"
@@ -61,7 +61,7 @@ public:
    * @param costmap_ros Costmap2DROS object of environment
    */
   void configure(
-    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+    const nav2::LifecycleNode::WeakPtr & parent,
     std::string name, std::shared_ptr<tf2_ros::Buffer> tf,
     std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
 
@@ -175,39 +175,13 @@ protected:
     double & linear_vel, double & sign);
 
   /**
-   * @brief Find the intersection a circle and a line segment.
-   * This assumes the circle is centered at the origin.
-   * If no intersection is found, a floating point error will occur.
-   * @param p1 first endpoint of line segment
-   * @param p2 second endpoint of line segment
-   * @param r radius of circle
-   * @return point of intersection
-   */
-  static geometry_msgs::msg::Point circleSegmentIntersection(
-    const geometry_msgs::msg::Point & p1,
-    const geometry_msgs::msg::Point & p2,
-    double r);
-
-  /**
-   * @brief Get lookahead point
-   * @param lookahead_dist Optimal lookahead distance
-   * @param path Current global path
-   * @param interpolate_after_goal If true, interpolate the lookahead point after the goal based
-   * on the orientation given by the position of the last two pose of the path
-   * @return Lookahead point
-   */
-  geometry_msgs::msg::PoseStamped getLookAheadPoint(
-    const double &, const nav_msgs::msg::Path &,
-    bool interpolate_after_goal = false);
-
-  /**
    * @brief checks for the cusp position
    * @param pose Pose input to determine the cusp position
    * @return robot distance from the cusp
    */
   double findVelocitySignChange(const nav_msgs::msg::Path & transformed_plan);
 
-  rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
+  nav2::LifecycleNode::WeakPtr node_;
   std::shared_ptr<tf2_ros::Buffer> tf_;
   std::string plugin_name_;
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
@@ -222,14 +196,11 @@ protected:
   bool is_rotating_to_heading_ = false;
   bool has_reached_xy_tolerance_ = false;
 
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> global_path_pub_;
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::PointStamped>>
-  carrot_pub_;
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::PointStamped>>
-  curvature_carrot_pub_;
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::Bool>>
-  is_rotating_to_heading_pub_;
-  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> carrot_arc_pub_;
+  nav2::Publisher<nav_msgs::msg::Path>::SharedPtr global_path_pub_;
+  nav2::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr carrot_pub_;
+  nav2::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr curvature_carrot_pub_;
+  nav2::Publisher<std_msgs::msg::Bool>::SharedPtr is_rotating_to_heading_pub_;
+  nav2::Publisher<nav_msgs::msg::Path>::SharedPtr carrot_arc_pub_;
   std::unique_ptr<nav2_regulated_pure_pursuit_controller::PathHandler> path_handler_;
   std::unique_ptr<nav2_regulated_pure_pursuit_controller::ParameterHandler> param_handler_;
   std::unique_ptr<nav2_regulated_pure_pursuit_controller::CollisionChecker> collision_checker_;
