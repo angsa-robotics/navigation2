@@ -193,21 +193,22 @@ std::tuple<geometry_msgs::msg::TwistStamped, Eigen::ArrayXXf> Optimizer::evalCon
   do {
     optimize();
     optimal_trajectory = getOptimizedTrajectory();
-    switch (trajectory_validator_->validateTrajectory(
-      optimal_trajectory, control_sequence_, robot_pose, robot_speed, plan, goal))
-    {
-      case mppi::ValidationResult::SOFT_RESET:
-        trajectory_valid = false;
-        RCLCPP_WARN(logger_, "Soft reset triggered by trajectory validator");
-        break;
-      case mppi::ValidationResult::FAILURE:
-        throw nav2_core::NoValidControl(
-          "Trajectory validator failed to validate trajectory, hard reset triggered.");
-      case mppi::ValidationResult::SUCCESS:
-      default:
-        trajectory_valid = true;
-        break;
-    }
+    // Commented out to rely on collision monitor instead
+    // switch (trajectory_validator_->validateTrajectory(
+    //   optimal_trajectory, control_sequence_, robot_pose, robot_speed, plan, goal))
+    // {
+    //   case mppi::ValidationResult::SOFT_RESET:
+    //     trajectory_valid = false;
+    //     RCLCPP_WARN(logger_, "Soft reset triggered by trajectory validator");
+    //     break;
+    //   case mppi::ValidationResult::FAILURE:
+    //     throw nav2_core::NoValidControl(
+    //       "Trajectory validator failed to validate trajectory, hard reset triggered.");
+    //   case mppi::ValidationResult::SUCCESS:
+    //   default:
+    //     trajectory_valid = true;
+    //     break;
+    // }
   } while (fallback(critics_data_.fail_flag || !trajectory_valid));
 
   utils::savitskyGolayFilter(control_sequence_, control_history_, settings_);
