@@ -119,10 +119,10 @@ float ObstaclesCritic::distanceToObstacle(const CollisionCost & cost)
   return dist_to_obj;
 }
 
-void ObstaclesCritic::score(CriticData & data)
+bool ObstaclesCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   if (consider_footprint_) {
@@ -196,6 +196,8 @@ void ObstaclesCritic::score(CriticData & data)
   }
 
   data.fail_flag = all_trajectories_collide;
+
+  return true;
 }
 
 /**

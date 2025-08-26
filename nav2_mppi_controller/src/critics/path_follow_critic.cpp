@@ -34,10 +34,10 @@ void PathFollowCritic::initialize()
   getParam(weight_, "cost_weight", 5.0f);
 }
 
-void PathFollowCritic::score(CriticData & data)
+bool PathFollowCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   geometry_msgs::msg::Pose goal = utils::getCriticGoal(data, enforce_path_inversion_);
@@ -46,7 +46,7 @@ void PathFollowCritic::score(CriticData & data)
     utils::withinPositionGoalTolerance(
       threshold_to_consider_, data.state.pose.pose, goal))
   {
-    return;
+    return false;
   }
 
   utils::setPathFurthestPointIfNotSet(data);
@@ -80,6 +80,8 @@ void PathFollowCritic::score(CriticData & data)
   } else {
     data.costs += ((delta_x.square() + delta_y.square()).sqrt()) * weight_;
   }
+
+  return true;
 }
 
 }  // namespace mppi::critics

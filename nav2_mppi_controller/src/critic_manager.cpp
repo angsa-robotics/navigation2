@@ -28,6 +28,9 @@ void CriticManager::on_configure(
   logger_ = node->get_logger();
   parameters_handler_ = param_handler;
 
+  critics_effect_publisher = node->create_publisher<std_msgs::msg::UInt8MultiArray>(
+    "~/critics_effect");
+
   getParams();
   loadCritics();
 }
@@ -67,12 +70,14 @@ std::string CriticManager::getFullName(const std::string & name)
 void CriticManager::evalTrajectoriesScores(
   CriticData & data) const
 {
+  auto critics_effect_msg = std_msgs::msg::UInt8MultiArray();
   for (const auto & critic : critics_) {
     if (data.fail_flag) {
       break;
     }
-    critic->score(data);
+    critics_effect_msg.data.push_back(critic->score(data));
   }
+  critics_effect_publisher->publish(critics_effect_msg);
 }
 
 }  // namespace mppi

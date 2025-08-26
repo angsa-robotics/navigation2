@@ -28,7 +28,7 @@ class DummyCritic : public CriticFunction
 {
 public:
   virtual void initialize() {initialized_ = true;}
-  virtual void score(CriticData & /*data*/) {scored_ = true;}
+  virtual bool score(CriticData & /*data*/) {scored_ = true; return true;}
   bool initialized_{false}, scored_{false};
 };
 

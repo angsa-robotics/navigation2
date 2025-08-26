@@ -86,8 +86,9 @@ public:
   /**
     * @brief Main function to score trajectory
     * @param data Critic data to use in scoring
+    * @return true if the critic modified the data, false otherwise
     */
-  virtual void score(CriticData & data) = 0;
+  virtual bool score(CriticData & data) = 0;
 
   /**
     * @brief Initialize critic

@@ -35,10 +35,10 @@ void PreferForwardCritic::initialize()
     logger_, "PreferForwardCritic instantiated with %d power and %f weight.", power_, weight_);
 }
 
-void PreferForwardCritic::score(CriticData & data)
+bool PreferForwardCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   geometry_msgs::msg::Pose goal = utils::getCriticGoal(data, enforce_path_inversion_);
@@ -46,7 +46,7 @@ void PreferForwardCritic::score(CriticData & data)
   if (utils::withinPositionGoalTolerance(
       threshold_to_consider_, data.state.pose.pose, goal))
   {
-    return;
+    return false;
   }
 
   if (power_ > 1u) {
@@ -57,6 +57,7 @@ void PreferForwardCritic::score(CriticData & data)
     data.costs += (data.state.vx.unaryExpr([&](const float & x){return std::max(-x, 0.0f);}) *
       data.model_dt).rowwise().sum() * weight_;
   }
+  return true;
 }
 
 }  // namespace mppi::critics

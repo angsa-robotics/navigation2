@@ -34,12 +34,12 @@ public:
   void initialize() override;
 
   /**
-   * @brief Evaluate cost related to robot orientation at goal pose
-   * (considered only if robot near last goal in current plan)
+   * @brief Evaluate cost related to twirling behavior
    *
-   * @param costs [out] add goal angle cost values to this tensor
+   * @param costs [out] add twirling cost values to this tensor
+   * @return true if the critic modified the data, false otherwise
    */
-  void score(CriticData & data) override;
+  bool score(CriticData & data) override;
 
 protected:
   unsigned int power_{0};

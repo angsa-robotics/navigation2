@@ -38,10 +38,10 @@ void VelocityDeadbandCritic::initialize()
       << deadband_velocities_.at(2) << "]");
 }
 
-void VelocityDeadbandCritic::score(CriticData & data)
+bool VelocityDeadbandCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   if (data.motion_model->isHolonomic()) {
@@ -56,7 +56,7 @@ void VelocityDeadbandCritic::score(CriticData & data)
         (fabs(deadband_velocities_[2]) - data.state.wz.abs()).max(0.0f)) *
         data.model_dt).rowwise().sum() * weight_).eval();
     }
-    return;
+    return true;
   }
 
   if (power_ > 1u) {
@@ -68,7 +68,7 @@ void VelocityDeadbandCritic::score(CriticData & data)
       (fabs(deadband_velocities_[2]) - data.state.wz.abs()).max(0.0f)) *
       data.model_dt).rowwise().sum() * weight_).eval();
   }
-  return;
+  return true;
 }
 
 }  // namespace mppi::critics

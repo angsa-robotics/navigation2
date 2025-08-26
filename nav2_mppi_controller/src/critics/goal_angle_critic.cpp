@@ -34,10 +34,10 @@ void GoalAngleCritic::initialize()
     power_, weight_, threshold_to_consider_);
 }
 
-void GoalAngleCritic::score(CriticData & data)
+bool GoalAngleCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   geometry_msgs::msg::Pose goal = utils::getCriticGoal(data, enforce_path_inversion_);
@@ -45,7 +45,7 @@ void GoalAngleCritic::score(CriticData & data)
   if (!utils::withinPositionGoalTolerance(
       threshold_to_consider_, data.state.pose.pose, goal))
   {
-    return;
+    return false;
   }
 
   double goal_yaw = tf2::getYaw(goal.orientation);
@@ -57,6 +57,7 @@ void GoalAngleCritic::score(CriticData & data)
     data.costs += (((utils::shortest_angular_distance(data.trajectories.yaws, goal_yaw).abs()).
       rowwise().mean()) * weight_).eval();
   }
+  return true;
 }
 
 }  // namespace mppi::critics

@@ -44,8 +44,9 @@ public:
    * @brief Evaluate cost related to obstacle avoidance
    *
    * @param costs [out] add obstacle cost values to this tensor
+   * @return true if the critic modified the data, false otherwise
    */
-  void score(CriticData & data) override;
+  bool score(CriticData & data) override;
 
 protected:
   /**

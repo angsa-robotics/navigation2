@@ -44,8 +44,9 @@ public:
    * (considered only if robot near last goal in current plan)
    *
    * @param costs [out] add goal angle cost values to this tensor
+   * @return true if the critic modified the data, false otherwise
    */
-  void score(CriticData & data) override;
+  bool score(CriticData & data) override;
 
 protected:
   float threshold_to_consider_{0};

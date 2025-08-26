@@ -35,10 +35,10 @@ void GoalCritic::initialize()
     power_, weight_);
 }
 
-void GoalCritic::score(CriticData & data)
+bool GoalCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   geometry_msgs::msg::Pose goal = utils::getCriticGoal(data, enforce_path_inversion_);
@@ -46,7 +46,7 @@ void GoalCritic::score(CriticData & data)
   if (!utils::withinPositionGoalTolerance(
       threshold_to_consider_, data.state.pose.pose, goal))
   {
-    return;
+    return false;
   }
 
   auto goal_x = goal.position.x;
@@ -62,6 +62,7 @@ void GoalCritic::score(CriticData & data)
     data.costs += (((delta_x.square() + delta_y.square()).sqrt()).rowwise().mean() *
       weight_).eval();
   }
+  return true;
 }
 
 }  // namespace mppi::critics

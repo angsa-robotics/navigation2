@@ -129,10 +129,10 @@ float CostCritic::findCircumscribedCost(
   return circumscribed_cost_;
 }
 
-void CostCritic::score(CriticData & data)
+bool CostCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   geometry_msgs::msg::Pose goal = utils::getCriticGoal(data, enforce_path_inversion_);
@@ -224,6 +224,8 @@ void CostCritic::score(CriticData & data)
   }
 
   data.fail_flag = all_trajectories_collide;
+
+  return true;
 }
 
 }  // namespace mppi::critics

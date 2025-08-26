@@ -40,8 +40,9 @@ public:
    * @brief Evaluate cost related to goal following
    *
    * @param costs [out] add reference cost values to this tensor
+   * @return true if the critic modified the data, false otherwise
    */
-  void score(CriticData & data) override;
+  bool score(CriticData & data) override;
 
 protected:
   unsigned int power_{0};

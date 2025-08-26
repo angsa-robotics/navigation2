@@ -23,6 +23,8 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 
+#include "std_msgs/msg/u_int8_multi_array.hpp"
+
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
@@ -97,6 +99,7 @@ protected:
   Critics critics_;
 
   rclcpp::Logger logger_{rclcpp::get_logger("MPPIController")};
+  rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr critics_effect_publisher;
 };
 
 }  // namespace mppi

@@ -60,10 +60,10 @@ void PathAngleCritic::initialize()
     power_, weight_, modeToStr(mode_).c_str());
 }
 
-void PathAngleCritic::score(CriticData & data)
+bool PathAngleCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   geometry_msgs::msg::Pose goal = utils::getCriticGoal(data, enforce_path_inversion_);
@@ -71,7 +71,7 @@ void PathAngleCritic::score(CriticData & data)
   if (utils::withinPositionGoalTolerance(
       threshold_to_consider_, data.state.pose.pose, goal))
   {
-    return;
+    return false;
   }
 
   utils::setPathFurthestPointIfNotSet(data);
@@ -87,17 +87,17 @@ void PathAngleCritic::score(CriticData & data)
   switch (mode_) {
     case PathAngleMode::FORWARD_PREFERENCE:
       if (utils::posePointAngle(pose, goal_x, goal_y, true) < max_angle_to_furthest_) {
-        return;
+        return false;
       }
       break;
     case PathAngleMode::NO_DIRECTIONAL_PREFERENCE:
       if (utils::posePointAngle(pose, goal_x, goal_y, false) < max_angle_to_furthest_) {
-        return;
+        return false;
       }
       break;
     case PathAngleMode::CONSIDER_FEASIBLE_PATH_ORIENTATIONS:
       if (utils::posePointAngle(pose, goal_x, goal_y, goal_yaw) < max_angle_to_furthest_) {
-        return;
+        return false;
       }
       break;
     default:
@@ -121,7 +121,7 @@ void PathAngleCritic::score(CriticData & data)
         } else {
           data.costs += yaws * weight_;
         }
-        return;
+        return true;
       }
     case PathAngleMode::NO_DIRECTIONAL_PREFERENCE:
       {
@@ -135,7 +135,7 @@ void PathAngleCritic::score(CriticData & data)
         } else {
           data.costs += corrected_yaws * weight_;
         }
-        return;
+        return true;
       }
     case PathAngleMode::CONSIDER_FEASIBLE_PATH_ORIENTATIONS:
       {
@@ -149,9 +149,11 @@ void PathAngleCritic::score(CriticData & data)
         } else {
           data.costs += corrected_yaws * weight_;
         }
-        return;
+        return true;
       }
   }
+
+  return false;
 }
 
 }  // namespace mppi::critics

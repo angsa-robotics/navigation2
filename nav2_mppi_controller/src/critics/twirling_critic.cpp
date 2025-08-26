@@ -33,10 +33,10 @@ void TwirlingCritic::initialize()
     logger_, "TwirlingCritic instantiated with %d power and %f weight.", power_, weight_);
 }
 
-void TwirlingCritic::score(CriticData & data)
+bool TwirlingCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   geometry_msgs::msg::Pose goal = utils::getCriticGoal(data, enforce_path_inversion_);
@@ -44,7 +44,7 @@ void TwirlingCritic::score(CriticData & data)
   if (utils::withinPositionGoalTolerance(
       data.goal_checker, data.state.pose.pose, goal))
   {
-    return;
+    return false;
   }
 
   if (power_ > 1u) {
@@ -52,6 +52,7 @@ void TwirlingCritic::score(CriticData & data)
   } else {
     data.costs += ((data.state.wz.abs().rowwise().mean()) * weight_).eval();
   }
+  return true;
 }
 
 }  // namespace mppi::critics

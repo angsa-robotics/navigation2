@@ -38,10 +38,10 @@ void ConstraintCritic::initialize()
   min_vel_ = min_sgn * sqrtf(vx_min * vx_min + vy_max * vy_max);
 }
 
-void ConstraintCritic::score(CriticData & data)
+bool ConstraintCritic::score(CriticData & data)
 {
   if (!enabled_) {
-    return;
+    return false;
   }
 
   // Differential motion model
@@ -54,7 +54,7 @@ void ConstraintCritic::score(CriticData & data)
       data.costs += (((((data.state.vx - max_vel_).max(0.0f) + (min_vel_ - data.state.vx).
         max(0.0f)) * data.model_dt).rowwise().sum().eval()) * weight_).eval();
     }
-    return;
+    return true;
   }
 
   // Omnidirectional motion model
@@ -74,7 +74,7 @@ void ConstraintCritic::score(CriticData & data)
       data.costs += ((((vel_total - max_vel_).max(0.0f) + (min_vel_ - vel_total).
         max(0.0f)) * data.model_dt).rowwise().sum().eval() * weight_).eval();
     }
-    return;
+    return true;
   }
 
   // Ackermann motion model
@@ -92,8 +92,10 @@ void ConstraintCritic::score(CriticData & data)
       data.costs += ((((vx - max_vel_).max(0.0f) + (min_vel_ - vx).max(0.0f) +
         out_of_turning_rad_motion) * data.model_dt).rowwise().sum().eval() * weight_).eval();
     }
-    return;
+    return true;
   }
+
+  return false;
 }
 
 }  // namespace mppi::critics
