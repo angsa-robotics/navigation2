@@ -241,9 +241,13 @@ NavigateToPoseNavigator::initializeGoalPose(ActionT::Goal::ConstSharedPtr goal)
   }
 
   RCLCPP_INFO(
-    logger_, "Begin navigating from current location (x=%.3f, y=%.3f, yaw=%.3f) to (x=%.3f, y=%.3f, yaw=%.3f)",
-    current_pose.pose.position.x, current_pose.pose.position.y, tf2::getYaw(current_pose.pose.orientation),
-    goal_pose.pose.position.x, goal_pose.pose.position.y, tf2::getYaw(goal_pose.pose.orientation));
+    logger_,
+    "Begin navigating from current location (x=%.3f, y=%.3f, yaw=%.3f) "
+    "to (x=%.3f, y=%.3f, yaw=%.3f)",
+    current_pose.pose.position.x, current_pose.pose.position.y,
+    tf2::getYaw(current_pose.pose.orientation),
+    goal_pose.pose.position.x, goal_pose.pose.position.y,
+    tf2::getYaw(goal_pose.pose.orientation));
 
   // Reset state for new action feedback
   start_time_ = clock_->now();

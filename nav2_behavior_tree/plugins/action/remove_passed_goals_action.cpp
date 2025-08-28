@@ -37,7 +37,7 @@ RemovePassedGoals::RemovePassedGoals(
 void RemovePassedGoals::initialize()
 {
   getInput("radius", viapoint_achieved_radius_);
-  getInput("yaw", viapoint_achieved_yaw_); // new input for yaw threshold
+  getInput("yaw", viapoint_achieved_yaw_);  // new input for yaw threshold
 
   tf_ = config().blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
   node_ = config().blackboard->get<nav2::LifecycleNode::SharedPtr>("node");
@@ -61,7 +61,8 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     return BT::NodeStatus::SUCCESS;
   }
   getInput("nb_goals_to_consider", nb_goals_to_consider_);
-  nb_goals_to_consider_ = std::min(nb_goals_to_consider_, static_cast<int>(goal_poses.goals.size()));
+  nb_goals_to_consider_ = std::min(nb_goals_to_consider_,
+      static_cast<int>(goal_poses.goals.size()));
 
   using namespace nav2_util::geometry_utils;  // NOLINT
 
@@ -93,20 +94,20 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     }
   }
   if (goal_reached) {
-
     if (waypoint_statuses_get_res) {
       // Mark reached goal as COMPLETED and all previous ones as SKIPPED
       for (int i = 0; i <= reached_goal_index; ++i) {
-      auto cur_waypoint_index =
-        find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, goal_poses.goals[i]);
-      waypoint_statuses.at(cur_waypoint_index).waypoint_status =
-        (i == reached_goal_index) ? nav2_msgs::msg::WaypointStatus::COMPLETED
-                                  : nav2_msgs::msg::WaypointStatus::SKIPPED;
+        auto cur_waypoint_index =
+          find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, goal_poses.goals[i]);
+        waypoint_statuses.at(cur_waypoint_index).waypoint_status =
+          (i == reached_goal_index) ? nav2_msgs::msg::WaypointStatus::COMPLETED :
+          nav2_msgs::msg::WaypointStatus::SKIPPED;
       }
     }
     // If the reached goal is NOT the last one, erase all COMPLETED and SKIPPED goals
     if (reached_goal_index < static_cast<int>(goal_poses.goals.size()) - 1) {
-      goal_poses.goals.erase(goal_poses.goals.begin(), goal_poses.goals.begin() + reached_goal_index + 1);
+      goal_poses.goals.erase(goal_poses.goals.begin(),
+          goal_poses.goals.begin() + reached_goal_index + 1);
     }
   }
   setOutput("output_goals", goal_poses);

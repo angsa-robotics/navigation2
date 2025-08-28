@@ -152,7 +152,9 @@ inline Iter first_after_integrated_distance(Iter begin, Iter end, Getter getComp
  * subset of the path.
  * @return double Path length
  */
-inline double calculate_path_length(const nav_msgs::msg::Path & path, size_t start_index = 0, size_t end_index = 0)
+inline double calculate_path_length(
+  const nav_msgs::msg::Path & path, size_t start_index = 0,
+  size_t end_index = 0)
 {
   if (end_index == 0) {
     end_index = path.poses.size() - 1;

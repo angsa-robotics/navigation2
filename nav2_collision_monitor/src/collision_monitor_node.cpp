@@ -588,7 +588,8 @@ bool CollisionMonitor::processApproach(
   }
 
   // Obtain collision information
-  const CollisionInfo collision_info = polygon->getCollisionTime(sources_collision_points_map, velocity);
+  const CollisionInfo collision_info = polygon->getCollisionTime(sources_collision_points_map,
+      velocity);
   if (collision_info.time >= 0.0) {
     double change_ratio = 1.0;
     double min_collision_distance = polygon->getMinCollisionDistance();
@@ -602,7 +603,7 @@ bool CollisionMonitor::processApproach(
       // If collision will occur, determine safety factor
       change_ratio = collision_info.time / polygon->getTimeBeforeCollision();
     }
-    
+
     const Velocity safe_vel = velocity * change_ratio;
     // Check that currently calculated velocity is safer than
     // chosen for previous shapes one
