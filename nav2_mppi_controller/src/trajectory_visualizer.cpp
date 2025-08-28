@@ -104,8 +104,8 @@ void TrajectoryVisualizer::add(
 }
 
 void TrajectoryVisualizer::add(
-  const models::Trajectories & trajectories, const std::string & marker_namespace, const builtin_interfaces::msg::Time & cmd_stamp)
-
+  const models::Trajectories & trajectories, const std::string & marker_namespace,
+  const builtin_interfaces::msg::Time & cmd_stamp)
 {
   size_t n_rows = trajectories.x.rows();
   size_t n_cols = trajectories.x.cols();

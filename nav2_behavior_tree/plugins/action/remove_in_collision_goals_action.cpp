@@ -49,7 +49,10 @@ void RemoveInCollisionGoals::on_tick()
   request_ = std::make_shared<nav2_msgs::srv::GetCosts::Request>();
   request_->use_footprint = use_footprint_;
 
-  for (size_t i = 0; i < static_cast<size_t>(nb_goals_to_consider_) && i < input_goals_.goals.size(); ++i) {
+  for (size_t i =
+    0; i < static_cast<size_t>(nb_goals_to_consider_) && i < input_goals_.goals.size();
+    ++i)
+  {
     request_->poses.push_back(input_goals_.goals[i]);
   }
 }
@@ -70,12 +73,15 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
   auto waypoint_statuses_get_res = getInput("input_waypoint_statuses", waypoint_statuses);
 
   for (int i = static_cast<int>(response->costs.size()) - 1; i >= 0; --i) {
-    if ((response->costs[i] != 255 || consider_unknown_as_obstacle_) && response->costs[i] >= cost_threshold_) {
+    if ((response->costs[i] != 255 || consider_unknown_as_obstacle_) &&
+      response->costs[i] >= cost_threshold_)
+    {
       if (waypoint_statuses_get_res) {
-          auto cur_waypoint_index =
-            nav2_util::geometry_utils::find_next_matching_goal_in_waypoint_statuses(waypoint_statuses, input_goals_.goals[i]);
-          waypoint_statuses.at(cur_waypoint_index).waypoint_status =
-            nav2_msgs::msg::WaypointStatus::SKIPPED;
+        auto cur_waypoint_index =
+          nav2_util::geometry_utils::find_next_matching_goal_in_waypoint_statuses(waypoint_statuses,
+            input_goals_.goals[i]);
+        waypoint_statuses.at(cur_waypoint_index).waypoint_status =
+          nav2_msgs::msg::WaypointStatus::SKIPPED;
       }
       input_goals_.goals.erase(input_goals_.goals.begin() + i);
     }

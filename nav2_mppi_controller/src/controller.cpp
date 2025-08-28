@@ -159,7 +159,8 @@ void MPPIController::visualize(
   const builtin_interfaces::msg::Time & cmd_stamp,
   const Eigen::ArrayXXf & optimal_trajectory)
 {
-  trajectory_visualizer_.add(optimizer_.getGeneratedTrajectories(), "Candidate Trajectories", cmd_stamp);
+  trajectory_visualizer_.add(optimizer_.getGeneratedTrajectories(), "Candidate Trajectories",
+      cmd_stamp);
   trajectory_visualizer_.add(optimal_trajectory, "Optimal Trajectory", cmd_stamp);
   trajectory_visualizer_.visualize(std::move(transformed_plan));
 }
@@ -179,14 +180,14 @@ visualization_msgs::msg::MarkerArray MPPIController::createFootprintMarkers(
   const std_msgs::msg::Header & header)
 {
   visualization_msgs::msg::MarkerArray marker_array;
-  
+
   if (trajectory.rows() == 0) {
     return marker_array;
   }
 
   // Get robot footprint from costmap
   auto robot_footprint = costmap_ros_->getRobotFootprint();
-  
+
   // Skip if footprint is empty or very small
   if (robot_footprint.size() < 3) {
     return marker_array;
@@ -199,18 +200,18 @@ visualization_msgs::msg::MarkerArray MPPIController::createFootprintMarkers(
 
   // Sample every N points to avoid too many markers (adjust as needed)
   const int footprint_downsample_factor = std::max(1, static_cast<int>(trajectory.rows() / 20));
-  
+
   int marker_id = 0;
   for (int i = 0; i < trajectory.rows(); i += footprint_downsample_factor) {
     double x = trajectory(i, 0);
     double y = trajectory(i, 1);
     double theta = trajectory(i, 2);
-    
+
     // Create oriented footprint
     geometry_msgs::msg::PolygonStamped oriented_footprint;
     oriented_footprint.header = costmap_header;
     nav2_costmap_2d::transformFootprint(x, y, theta, robot_footprint, oriented_footprint);
-    
+
     // Create marker for this footprint
     visualization_msgs::msg::Marker marker;
     marker.header = costmap_header;
@@ -219,14 +220,14 @@ visualization_msgs::msg::MarkerArray MPPIController::createFootprintMarkers(
     marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
     marker.action = visualization_msgs::msg::Marker::ADD;
     marker.pose.orientation.w = 1.0;
-    
+
     // Set marker scale and color
     marker.scale.x = 0.02;  // Line width
     marker.color.r = 0.0;
     marker.color.g = 1.0;
     marker.color.b = 0.0;
     marker.color.a = 0.8;
-    
+
     // Add footprint points to marker
     for (const auto & point : oriented_footprint.polygon.points) {
       geometry_msgs::msg::Point p;
@@ -235,15 +236,15 @@ visualization_msgs::msg::MarkerArray MPPIController::createFootprintMarkers(
       p.z = 0.0;
       marker.points.push_back(p);
     }
-    
+
     // Close the polygon by adding the first point again
     if (!marker.points.empty()) {
       marker.points.push_back(marker.points[0]);
     }
-    
+
     marker_array.markers.push_back(marker);
   }
-  
+
   return marker_array;
 }
 

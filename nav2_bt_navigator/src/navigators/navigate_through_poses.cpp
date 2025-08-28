@@ -213,7 +213,7 @@ NavigateThroughPosesNavigator::onLoop()
 
       // feedback_msg->distance_remaining = distance_remaining;
       // feedback_msg->estimated_time_remaining = estimated_time_remaining;
-    // }
+      // }
 
     // int recovery_count = 0;
     // res = blackboard->get("number_recoveries", recovery_count);
@@ -274,8 +274,7 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
 
   std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses = goal->waypoint_statuses;
 
-  if (waypoint_statuses.empty())
-  {
+  if (waypoint_statuses.empty()) {
     for (int i = 0; i < static_cast<int>(goal->poses.goals.size()); ++i) {
       nav2_msgs::msg::WaypointStatus waypoint_status;
       waypoint_status.waypoint_index = i;
@@ -288,7 +287,8 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
   int i = 0;
   for (auto & goal_pose : waypoint_statuses) {
     if (!nav2_util::transformPoseInTargetFrame(
-        goal_pose.waypoint_pose, goal_pose.waypoint_pose, *feedback_utils_.tf, feedback_utils_.global_frame,
+        goal_pose.waypoint_pose, goal_pose.waypoint_pose, *feedback_utils_.tf,
+        feedback_utils_.global_frame,
         feedback_utils_.transform_tolerance))
     {
       bt_action_server_->setInternalError(ActionT::Result::TF_ERROR,
@@ -312,7 +312,7 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
     logger_, "Begin navigating from current location through %zu poses to (%.2f, %.2f)",
     waypoint_statuses.size(), waypoint_statuses.back().waypoint_pose.pose.position.x,
     waypoint_statuses.back().waypoint_pose.pose.position.y);
-  
+
 
   // Reset state for new action feedback
   start_time_ = clock_->now();
@@ -322,7 +322,8 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
 
   nav_msgs::msg::Goals goals_array;
 
-  // iterate through the waypoint statuses and add the poses to the goals array but keep only the PENDING ones
+  // iterate through the waypoint statuses and add the poses to the goals array
+  // but keep only the PENDING ones
   for (const auto & waypoint_status : waypoint_statuses) {
     if (waypoint_status.waypoint_status == nav2_msgs::msg::WaypointStatus::PENDING) {
       goals_array.goals.push_back(waypoint_status.waypoint_pose);
@@ -339,7 +340,8 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
 }
 
 void
-NavigateThroughPosesNavigator::onGoalPoseReceived(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
+NavigateThroughPosesNavigator::onGoalPoseReceived(
+  const geometry_msgs::msg::PoseStamped::SharedPtr pose)
 {
   ActionT::Goal goal;
   goal.poses.goals.push_back(*pose);

@@ -264,7 +264,7 @@ CollisionInfo Polygon::getCollisionTime(
   const Velocity & velocity) const
 {
   CollisionInfo info = {-1.0, 0.0};  // Default: no collision
-  
+
   // Initial robot pose is {0,0} in base_footprint coordinates
   Pose pose = {0.0, 0.0, 0.0};
   Velocity vel = velocity;
@@ -409,7 +409,8 @@ bool Polygon::getCommonParameters(
         node->get_parameter(polygon_name_ + ".simulation_time_step").as_double();
       nav2::declare_parameter_if_not_declared(
         node, polygon_name_ + ".min_collision_distance", rclcpp::ParameterValue(0.2));
-      min_collision_distance_ = node->get_parameter(polygon_name_ + ".min_collision_distance").as_double();
+      min_collision_distance_ = node->get_parameter(polygon_name_ +
+          ".min_collision_distance").as_double();
     }
 
     nav2::declare_parameter_if_not_declared(
