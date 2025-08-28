@@ -796,7 +796,7 @@ void ControllerServer::onGoalExit(bool force_stop)
 void ControllerServer::publishHardStopVelocity()
 {
   geometry_msgs::msg::TwistStamped velocity;
-  velocity.twist.angular.x = -1; // signal for velocity_smoother to immediately stop
+  velocity.twist.angular.x = -1;  // signal for velocity_smoother to immediately stop
   velocity.twist.angular.y = 0;
   velocity.twist.angular.z = 0;
   velocity.twist.linear.x = 0;

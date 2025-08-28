@@ -291,7 +291,6 @@ double VelocitySmoother::applyConstraints(
   const double v_curr, const double v_cmd, const double & dt,
   const double accel, const double decel, const double eta)
 {
-
   auto v_cmd_intermediary = v_cmd;
   if (abs(v_curr) > 0.0001 && v_curr * v_cmd < 0.0) {
     v_cmd_intermediary = 0.0;
@@ -327,7 +326,8 @@ void VelocitySmoother::smootherTimer()
   auto cmd_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
   cmd_vel->header = command_->header;
 
-  if (command_->twist.angular.x == -1) { // twist.angular.x = -1 is just a convention we chose to stop immediately
+  // twist.angular.x = -1 is just a convention we chose to stop immediately
+  if (command_->twist.angular.x == -1) {
     last_cmd_ = geometry_msgs::msg::TwistStamped();
     smoothed_cmd_pub_->publish(std::move(cmd_vel));
     return;

@@ -322,7 +322,8 @@ NavigateThroughPosesNavigator::initializeGoalPoses(ActionT::Goal::ConstSharedPtr
 
   nav_msgs::msg::Goals goals_array;
 
-  // iterate through the waypoint statuses and add the poses to the goals array but keep only the PENDING ones
+  // iterate through the waypoint statuses and add the poses to the goals array
+  // but keep only the PENDING ones
   for (const auto & waypoint_status : waypoint_statuses) {
     if (waypoint_status.waypoint_status == nav2_msgs::msg::WaypointStatus::PENDING) {
       goals_array.goals.push_back(waypoint_status.waypoint_pose);

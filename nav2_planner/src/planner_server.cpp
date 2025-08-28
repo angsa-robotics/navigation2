@@ -430,7 +430,8 @@ void PlannerServer::computePlanThroughPoses()
         } else {
           RCLCPP_WARN(
             get_logger(),
-              "Goal %d coordinates of (%.2f, %.2f) was outside bounds but there are still goals inside. Ignoring the rest",
+            "Goal %d coordinates of (%.2f, %.2f) was outside bounds "
+            "but there are still goals inside. Ignoring the rest",
             i, curr_goal.pose.position.x, curr_goal.pose.position.y);
           break;
         }

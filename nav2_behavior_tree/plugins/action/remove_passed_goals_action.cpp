@@ -37,7 +37,7 @@ RemovePassedGoals::RemovePassedGoals(
 void RemovePassedGoals::initialize()
 {
   getInput("radius", viapoint_achieved_radius_);
-  getInput("yaw", viapoint_achieved_yaw_); // new input for yaw threshold
+  getInput("yaw", viapoint_achieved_yaw_);  // new input for yaw threshold
 
   tf_ = config().blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
   node_ = config().blackboard->get<nav2::LifecycleNode::SharedPtr>("node");
@@ -94,7 +94,6 @@ inline BT::NodeStatus RemovePassedGoals::tick()
     }
   }
   if (goal_reached) {
-
     if (waypoint_statuses_get_res) {
       // Mark reached goal as COMPLETED and all previous ones as SKIPPED
       for (int i = 0; i <= reached_goal_index; ++i) {
