@@ -153,7 +153,7 @@ bool PathAngleCritic::score(CriticData & data)
       }
   }
 
-  return false;
+  return true;
 }
 
 }  // namespace mppi::critics
