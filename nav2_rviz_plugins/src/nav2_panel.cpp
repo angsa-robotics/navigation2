@@ -1458,7 +1458,8 @@ Nav2Panel::getNavToPoseFeedbackLabel(nav2_msgs::action::NavigateToPose::Feedback
 }
 
 inline QString
-Nav2Panel::getNavThroughPosesFeedbackLabel(nav2_msgs::action::NavigateThroughPoses::Feedback /*msg*/)
+Nav2Panel::getNavThroughPosesFeedbackLabel(
+  nav2_msgs::action::NavigateThroughPoses::Feedback /*msg*/)
 {
   return QString(std::string().c_str());
   // return QString(

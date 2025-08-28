@@ -256,7 +256,8 @@ void VelocitySmoother::inputCommandCallback(
 }
 
 double VelocitySmoother::findEtaConstraint(
-  const double v_curr, const double v_cmd, const double & dt, const double accel, const double decel)
+  const double v_curr, const double v_cmd, const double & dt, const double accel,
+  const double decel)
 {
   // Exploiting vector scaling properties
   double dv = v_cmd - v_curr;
@@ -304,7 +305,9 @@ double VelocitySmoother::applyConstraints(
   // Accelerating if magnitude of v_cmd is above magnitude of v_curr
   // and if v_cmd and v_curr have the same sign (i.e. speed is NOT passing through 0.0)
   // Decelerating otherwise
-  if (abs(v_curr) < 0.01 || (abs(v_cmd_intermediary) >= abs(v_curr) && v_curr * v_cmd_intermediary >= 0.0)) {
+  if (abs(v_curr) < 0.01 ||
+    (abs(v_cmd_intermediary) >= abs(v_curr) && v_curr * v_cmd_intermediary >= 0.0))
+  {
     v_component_max = accel * dt;
     v_component_min = -accel * dt;
   } else {
@@ -324,7 +327,7 @@ void VelocitySmoother::smootherTimer()
   auto cmd_vel = std::make_unique<geometry_msgs::msg::TwistStamped>();
   cmd_vel->header = command_->header;
 
-  if (command_->twist.angular.x == -1) { // twist.angular.x = -1 is just a convention we chose to stop immediately 
+  if (command_->twist.angular.x == -1) { // twist.angular.x = -1 is just a convention we chose to stop immediately
     last_cmd_ = geometry_msgs::msg::TwistStamped();
     smoothed_cmd_pub_->publish(std::move(cmd_vel));
     return;
