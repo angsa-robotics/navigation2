@@ -42,13 +42,7 @@ void PathAlignCritic::initialize()
 
 void PathAlignCritic::score(CriticData & data)
 {
-  if (!enabled_) {
-    return;
-  }
-
-  float distance = utils::getCriticGoalPathDistance(data, enforce_path_inversion_);
-  // Don't apply close to goal, let the goal critics take over
-  if (distance < threshold_to_consider_) {
+  if (!enabled_ || data.state.local_path_length < threshold_to_consider_) {
     return;
   }
 

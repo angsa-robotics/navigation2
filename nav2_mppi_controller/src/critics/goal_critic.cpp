@@ -37,16 +37,11 @@ void GoalCritic::initialize()
 
 void GoalCritic::score(CriticData & data)
 {
-  if (!enabled_) {
+  if (!enabled_ || data.state.local_path_length > threshold_to_consider_) {
     return;
   }
 
-  geometry_msgs::msg::Pose goal = utils::getCriticGoal(data, enforce_path_inversion_);
-  float distance = utils::getCriticGoalPathDistance(data, enforce_path_inversion_);
-
-  if (distance > threshold_to_consider_) {
-    return;
-  }
+  geometry_msgs::msg::Pose goal = utils::getLastPathPose(data.path);
 
   // Use euclidean distance for cost calculation instead of integral path (it's faster)
   // When within threshold_to_consider_ of the goal, euclidean distance provides

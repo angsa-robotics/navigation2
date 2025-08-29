@@ -40,9 +40,8 @@ void PathFollowCritic::score(CriticData & data)
     return;
   }
 
-  float distance = utils::getCriticGoalPathDistance(data, enforce_path_inversion_);
-
-  if (data.path.x.size() < 2 || distance < threshold_to_consider_) {
+  if (data.path.x.size() < 2 || data.state.local_path_length < threshold_to_consider_)
+  {
     return;
   }
 
