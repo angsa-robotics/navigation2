@@ -635,11 +635,12 @@ TEST(collision_footprint, test_performance_benchmark) {
 
   // Convert footprint vertices to grid coordinates for obstacle placement
   unsigned int grid_x, grid_y;
-  
+
   const int num_iterations = 1000;
-  
+
   // Define test scenarios
-  struct TestScenario {
+  struct TestScenario
+  {
     std::string name;
     std::vector<std::pair<unsigned int, unsigned int>> obstacle_positions;
   };
@@ -668,14 +669,15 @@ TEST(collision_footprint, test_performance_benchmark) {
   std::cout << "Test configuration:" << std::endl;
   std::cout << "  - Costmap size: 500x500 cells (25m x 25m @ 0.05m resolution)" << std::endl;
   std::cout << "  - Footprint: Rectangle 2m x 1m" << std::endl;
-  std::cout << "  - Test position: (" << test_x << ", " << test_y << ", " << test_theta << ")" << std::endl;
+  std::cout << "  - Test position: (" << test_x << ", " << test_y << ", " << test_theta << ")" <<
+    std::endl;
   std::cout << "  - Iterations per scenario: " << num_iterations << std::endl;
   std::cout << "  - Obstacle cost: 254" << std::endl;
 
   // Run tests for each scenario
   std::vector<double> full_area_times;  // Store timing for early exit verification
-  
-  for (const auto& scenario : scenarios) {
+
+  for (const auto & scenario : scenarios) {
     // Clear costmap
     for (unsigned int i = 0; i < costmap_->getSizeInCellsX(); ++i) {
       for (unsigned int j = 0; j < costmap_->getSizeInCellsY(); ++j) {
@@ -684,7 +686,7 @@ TEST(collision_footprint, test_performance_benchmark) {
     }
 
     // Place obstacles for this scenario
-    for (const auto& pos : scenario.obstacle_positions) {
+    for (const auto & pos : scenario.obstacle_positions) {
       costmap_->setCost(pos.first, pos.second, 254);
     }
 
@@ -713,7 +715,7 @@ TEST(collision_footprint, test_performance_benchmark) {
     // Calculate averages
     double avg_perimeter_us = static_cast<double>(perimeter_duration.count()) / num_iterations;
     double avg_full_area_us = static_cast<double>(full_area_duration.count()) / num_iterations;
-    
+
     // Store full-area timing for early exit verification
     full_area_times.push_back(avg_full_area_us);
 
@@ -721,15 +723,16 @@ TEST(collision_footprint, test_performance_benchmark) {
     std::cout << "\nScenario: " << scenario.name << std::endl;
     std::cout << "  Perimeter checking:" << std::endl;
     std::cout << "    - Result: " << perimeter_result << std::endl;
-    std::cout << "    - Average time: " << std::fixed << std::setprecision(2) 
+    std::cout << "    - Average time: " << std::fixed << std::setprecision(2)
               << avg_perimeter_us << " microseconds" << std::endl;
     std::cout << "  Full-area checking:" << std::endl;
     std::cout << "    - Result: " << full_area_result << std::endl;
-    std::cout << "    - Average time: " << std::fixed << std::setprecision(2) 
+    std::cout << "    - Average time: " << std::fixed << std::setprecision(2)
               << avg_full_area_us << " microseconds" << std::endl;
-    std::cout << "  Performance ratio (full-area / perimeter): " 
-              << std::fixed << std::setprecision(2) 
-              << (avg_perimeter_us > 0 ? avg_full_area_us / avg_perimeter_us : 0.0) << "x" << std::endl;
+    std::cout << "  Performance ratio (full-area / perimeter): "
+              << std::fixed << std::setprecision(2)
+              << (avg_perimeter_us >
+    0 ? avg_full_area_us / avg_perimeter_us : 0.0) << "x" << std::endl;
 
     // Verify expected behavior for each scenario
     if (scenario.name == "No obstacles") {
@@ -753,35 +756,36 @@ TEST(collision_footprint, test_performance_benchmark) {
   // Verify early exit performance ordering for full-area checking
   // Expected order (fastest to slowest due to early exit):
   // 0: "Obstacle at vertex" - exits earliest when scanning perimeter (fastest)
-  // 1: "Obstacle on edge" - exits when scanning perimeter  
+  // 1: "Obstacle on edge" - exits when scanning perimeter
   // 2: "Obstacle inside" - exits when scanning interior
   // 3: "No obstacles" - must scan entire area (slowest)
   std::cout << "\nEarly exit performance verification (full-area checking):" << std::endl;
-  std::cout << "  Obstacle at vertex: " << std::fixed << std::setprecision(2) 
+  std::cout << "  Obstacle at vertex: " << std::fixed << std::setprecision(2)
             << full_area_times[0] << " μs (fastest)" << std::endl;
-  std::cout << "  Obstacle on edge: " << std::fixed << std::setprecision(2) 
+  std::cout << "  Obstacle on edge: " << std::fixed << std::setprecision(2)
             << full_area_times[1] << " μs" << std::endl;
-  std::cout << "  Obstacle inside: " << std::fixed << std::setprecision(2) 
+  std::cout << "  Obstacle inside: " << std::fixed << std::setprecision(2)
             << full_area_times[2] << " μs" << std::endl;
-  std::cout << "  No obstacles: " << std::fixed << std::setprecision(2) 
+  std::cout << "  No obstacles: " << std::fixed << std::setprecision(2)
             << full_area_times[3] << " μs (slowest)" << std::endl;
 
   // Verify early exit behavior: obstacles found earlier should result in faster execution
   // Expected order: vertex < edge < inside < no obstacles
   // Allow some tolerance for measurement noise, but expect clear ordering
   double tolerance_factor = 1.2;  // Allow 20% tolerance for timing variations
-  
+
   // Obstacle at vertex should be fastest (first vertex checked)
   EXPECT_LT(full_area_times[0] * tolerance_factor, full_area_times[1])  // vertex < edge
-    << "Obstacle at vertex (" << full_area_times[0] << " μs) should be faster than obstacle on edge (" 
+    << "Obstacle at vertex (" << full_area_times[0] <<
+    " μs) should be faster than obstacle on edge ("
     << full_area_times[1] << " μs) due to early exit";
-    
+
   EXPECT_LT(full_area_times[1] * tolerance_factor, full_area_times[2])  // edge < inside
-    << "Obstacle on edge (" << full_area_times[1] << " μs) should be faster than obstacle inside (" 
+    << "Obstacle on edge (" << full_area_times[1] << " μs) should be faster than obstacle inside ("
     << full_area_times[2] << " μs) due to early exit";
-    
+
   EXPECT_LT(full_area_times[2] * tolerance_factor, full_area_times[3])  // inside < no obstacles
-    << "Obstacle inside (" << full_area_times[2] << " μs) should be faster than no obstacles (" 
+    << "Obstacle inside (" << full_area_times[2] << " μs) should be faster than no obstacles ("
     << full_area_times[3] << " μs) due to early exit";
 
   std::cout << "  ✓ Early exit performance ordering verified" << std::endl;

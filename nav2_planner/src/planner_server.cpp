@@ -429,13 +429,16 @@ void PlannerServer::computePlanThroughPoses()
           throw ex;
         } else {
           RCLCPP_WARN(
-            get_logger(), "Goal %d coordinates of (%.2f, %.2f) was outside bounds but there are still goals inside. Ignoring the rest",
+            get_logger(),
+            "Goal %d coordinates of (%.2f, %.2f) was outside bounds "
+            "but there are still goals inside. Ignoring the rest",
             i, curr_goal.pose.position.x, curr_goal.pose.position.y);
           break;
         }
       } catch (nav2_core::StartOccupied & ex) {
         RCLCPP_WARN(
-          get_logger(), "Error START_OCCUPIED but probably 2 goals are just too close to each other.");
+          get_logger(),
+            "Error START_OCCUPIED but probably 2 goals are just too close to each other.");
         continue;
       }
 
@@ -443,9 +446,19 @@ void PlannerServer::computePlanThroughPoses()
         throw nav2_core::NoValidPathCouldBeFound(goal->planner_id + " generated a empty path");
       }
 
-      // Concatenate paths together
-      concat_path.poses.insert(
-        concat_path.poses.end(), curr_path.poses.begin(), curr_path.poses.end());
+      // Concatenate paths together, but skip the first pose of subsequent paths
+      // to avoid duplicating the connection point
+      if (i == 0) {
+        // First path: add all poses
+        concat_path.poses.insert(
+          concat_path.poses.end(), curr_path.poses.begin(), curr_path.poses.end());
+      } else {
+        // Subsequent paths: skip the first pose to avoid duplication
+        if (curr_path.poses.size() > 1) {
+          concat_path.poses.insert(
+            concat_path.poses.end(), curr_path.poses.begin() + 1, curr_path.poses.end());
+        }
+      }
       concat_path.header = curr_path.header;
     }
 
