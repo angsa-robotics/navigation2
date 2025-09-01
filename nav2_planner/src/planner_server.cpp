@@ -732,15 +732,19 @@ void PlannerServer::isPathValid(
         cost = nav2_costmap_2d::FREE_SPACE;
       }
 
+      bool pose_is_invalid = false;
       if (use_radius &&
         (cost >= request->max_cost || cost == nav2_costmap_2d::LETHAL_OBSTACLE ||
         cost == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE))
       {
-        response->is_valid = false;
-        break;
+        pose_is_invalid = true;
       } else if (cost == nav2_costmap_2d::LETHAL_OBSTACLE || cost >= request->max_cost) {
+        pose_is_invalid = true;
+      }
+
+      if (pose_is_invalid) {
         response->is_valid = false;
-        break;
+        response->invalid_pose_indices.push_back(static_cast<int32_t>(i));
       }
     }
   }
