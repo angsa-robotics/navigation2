@@ -186,7 +186,8 @@ std::tuple<geometry_msgs::msg::TwistStamped, Eigen::ArrayXXf> Optimizer::evalCon
   const geometry_msgs::msg::Pose & goal,
   nav2_core::GoalChecker * goal_checker)
 {
-  prepare(robot_pose, robot_speed, plan, goal, goal_checker);
+  prepare(robot_pose, robot_speed, plan, goal,
+      goal_checker);
   Eigen::ArrayXXf optimal_trajectory;
   bool trajectory_valid = true;
 
@@ -258,6 +259,7 @@ void Optimizer::prepare(
 {
   state_.pose = robot_pose;
   state_.speed = robot_speed;
+  state_.local_path_length = nav2_util::geometry_utils::calculate_path_length(plan);
   path_ = utils::toTensor(plan);
   costs_.setZero();
   goal_ = goal;
