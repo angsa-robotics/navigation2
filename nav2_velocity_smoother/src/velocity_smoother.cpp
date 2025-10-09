@@ -292,7 +292,7 @@ double VelocitySmoother::applyConstraints(
   const double accel, const double decel, const double eta)
 {
   auto v_cmd_intermediary = v_cmd;
-  if (abs(v_curr) > 0.0001 && v_curr * v_cmd < 0.0) {
+  if (abs(v_curr) > 0.01 && v_curr * v_cmd < 0.0) {
     v_cmd_intermediary = 0.0;
   }
 
