@@ -171,6 +171,11 @@ public:
         return BT::NodeStatus::FAILURE;
       }
 
+      RCLCPP_INFO(
+        node_->get_logger(),
+        "BT node '%s' sending service request to '%s'",
+        service_node_name_.c_str(), service_name_.c_str());
+
       future_result_ = service_client_->async_call(request_);
       sent_time_ = node_->now();
       request_sent_ = true;
@@ -221,6 +226,10 @@ public:
       rclcpp::FutureReturnCode rc;
       rc = service_client_->spin_until_complete(future_result_, timeout);
       if (rc == rclcpp::FutureReturnCode::SUCCESS) {
+        RCLCPP_INFO(
+          node_->get_logger(),
+          "BT node '%s' received response from '%s' after %.2f ms",
+          service_node_name_.c_str(), service_name_.c_str(), static_cast<double>(elapsed.count()));
         request_sent_ = false;
         BT::NodeStatus status = on_completion(future_result_.get());
         return status;
@@ -230,6 +239,11 @@ public:
         on_wait_for_result();
         elapsed = (node_->now() - sent_time_).template to_chrono<std::chrono::milliseconds>();
         if (elapsed < server_timeout_) {
+          RCLCPP_INFO(
+            node_->get_logger(),
+            "BT node '%s' still waiting for '%s' (%.2f/%.2f ms elapsed)",
+            service_node_name_.c_str(), service_name_.c_str(), 
+            static_cast<double>(elapsed.count()), static_cast<double>(server_timeout_.count()));
           return BT::NodeStatus::RUNNING;
         }
       }
@@ -237,7 +251,10 @@ public:
 
     RCLCPP_WARN(
       node_->get_logger(),
-      "Node timed out while executing service call to %s.", service_name_.c_str());
+      "Node timed out while executing service call to %s. "
+      "Elapsed: %.2f ms, Timeout: %.2f ms, Max per tick: %.2f ms", 
+      service_name_.c_str(), static_cast<double>(elapsed.count()), 
+      static_cast<double>(server_timeout_.count()), static_cast<double>(max_timeout_.count()));
     request_sent_ = false;
     return BT::NodeStatus::FAILURE;
   }

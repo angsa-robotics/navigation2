@@ -49,9 +49,16 @@ void RemoveInCollisionGoals::on_tick()
   request_ = std::make_shared<nav2_msgs::srv::GetCosts::Request>();
   request_->use_footprint = use_footprint_;
 
-  for (size_t i =
-    0; i < static_cast<size_t>(nb_goals_to_consider_) && i < input_goals_.goals.size();
-    ++i)
+  size_t poses_to_check = std::min(
+    static_cast<size_t>(nb_goals_to_consider_), 
+    input_goals_.goals.size());
+
+  RCLCPP_INFO(
+    node_->get_logger(),
+    "RemoveInCollisionGoals checking %zu goals (out of %zu total) with service '%s'",
+    poses_to_check, input_goals_.goals.size(), service_name_.c_str());
+
+  for (size_t i = 0; i < poses_to_check; ++i)
   {
     request_->poses.push_back(input_goals_.goals[i]);
   }
@@ -63,7 +70,7 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
   if (!response->success) {
     RCLCPP_ERROR(
       node_->get_logger(),
-      "GetCosts service call failed");
+      "GetCosts service call to '%s' failed", service_name_.c_str());
     setOutput("output_goals", input_goals_);
     return BT::NodeStatus::FAILURE;
   }
@@ -72,6 +79,7 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
   std::vector<nav2_msgs::msg::WaypointStatus> waypoint_statuses;
   auto waypoint_statuses_get_res = getInput("input_waypoint_statuses", waypoint_statuses);
 
+  int removed_count = 0;
   for (int i = static_cast<int>(response->costs.size()) - 1; i >= 0; --i) {
     if ((response->costs[i] != 255 || consider_unknown_as_obstacle_) &&
       response->costs[i] >= cost_threshold_)
@@ -84,8 +92,17 @@ BT::NodeStatus RemoveInCollisionGoals::on_completion(
           nav2_msgs::msg::WaypointStatus::SKIPPED;
       }
       input_goals_.goals.erase(input_goals_.goals.begin() + i);
+      removed_count++;
     }
   }
+  
+  if (removed_count > 0) {
+    RCLCPP_INFO(
+      node_->get_logger(),
+      "RemoveInCollisionGoals removed %d goals using service '%s'",
+      removed_count, service_name_.c_str());
+  }
+  
   setOutput("output_goals", input_goals_);
   // set `waypoint_statuses` output
   setOutput("output_waypoint_statuses", waypoint_statuses);

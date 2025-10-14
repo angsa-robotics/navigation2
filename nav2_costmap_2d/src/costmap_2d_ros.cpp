@@ -595,7 +595,17 @@ Costmap2DROS::updateMap()
       const double & x = pose.pose.position.x;
       const double & y = pose.pose.position.y;
       const double yaw = tf2::getYaw(pose.pose.orientation);
+      
+      auto update_start = now();
       layered_costmap_->updateMap(x, y, yaw);
+      auto update_end = now();
+      auto update_ms = (update_end - update_start).seconds() * 1000.0;
+      
+      if (update_ms > 50.0) {
+        RCLCPP_WARN(
+          get_logger(),
+          "Costmap update took %.2f ms (may block GetCosts service)", update_ms);
+      }
 
       auto footprint = std::make_unique<geometry_msgs::msg::PolygonStamped>();
       footprint->header = pose.header;
@@ -848,10 +858,28 @@ void Costmap2DROS::getCostsCallback(
   const std::shared_ptr<nav2_msgs::srv::GetCosts::Request> request,
   const std::shared_ptr<nav2_msgs::srv::GetCosts::Response> response)
 {
+  auto start_time = now();
+  RCLCPP_INFO(
+    get_logger(), 
+    "GetCosts service called with %zu poses, use_footprint=%d", 
+    request->poses.size(), request->use_footprint);
+  
   unsigned int mx, my;
 
   Costmap2D * costmap = layered_costmap_->getCostmap();
+  
+  // Log time waiting for mutex
+  auto before_lock = now();
   std::unique_lock<Costmap2D::mutex_t> lock(*(costmap->getMutex()));
+  auto after_lock = now();
+  auto lock_wait_ms = (after_lock - before_lock).seconds() * 1000.0;
+  
+  if (lock_wait_ms > 10.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "GetCosts waited %.2f ms for costmap mutex lock", lock_wait_ms);
+  }
+  
   response->success = true;
   for (const auto & pose : request->poses) {
     geometry_msgs::msg::PoseStamped pose_transformed;
@@ -895,6 +923,21 @@ void Costmap2DROS::getCostsCallback(
       // Get the cost at the map coordinates
       response->costs.push_back(static_cast<float>(costmap->getCost(mx, my)));
     }
+  }
+  
+  auto end_time = now();
+  auto total_ms = (end_time - start_time).seconds() * 1000.0;
+  
+  if (total_ms > 50.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "GetCosts service took %.2f ms to process %zu poses (lock wait: %.2f ms)", 
+      total_ms, request->poses.size(), lock_wait_ms);
+  } else {
+    RCLCPP_INFO(
+      get_logger(),
+      "GetCosts service completed in %.2f ms for %zu poses", 
+      total_ms, request->poses.size());
   }
 }
 
