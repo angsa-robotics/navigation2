@@ -301,10 +301,18 @@ inline size_t findPathFurthestReachedPoint(const CriticData & data)
   float min_distance_by_path = std::numeric_limits<float>::max();
   size_t n_rows = dists.rows();
   size_t n_cols = dists.cols();
+  
+  // Check if costs array is properly sized
+  bool use_cost_threshold = (data.costs.size() == static_cast<int>(n_rows));
+  
   for (size_t i = 0; i != n_rows; i++) {
+    // Skip trajectories with costs above threshold (only if costs are available)
+    if (use_cost_threshold && data.costs(i) > 290.0f) {
+      continue;
+    }
     min_id_by_path = 0;
     min_distance_by_path = std::numeric_limits<float>::max();
-    for (size_t j = max_id_by_trajectories; j != n_cols; j++) {
+    for (size_t j = 0; j != n_cols; j++) {
       const float cur_dist = dists(i, j);
       if (cur_dist < min_distance_by_path) {
         min_distance_by_path = cur_dist;
