@@ -11,6 +11,7 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geographic_msgs)
 find_package(action_msgs REQUIRED)
+find_package(unique_identifier_msgs REQUIRED)
 
 nav2_package()
 
@@ -38,9 +39,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RouteNode.msg"
   "msg/RouteEdge.msg"
   "msg/EdgeCost.msg"
+  "msg/TrackingFeedback.msg"
   "msg/Trajectory.msg"
   "msg/TrajectoryPoint.msg"
   "srv/GetCosts.srv"
+  "msg/PolygonObject.msg"
+  "msg/CircleObject.msg"
   "srv/GetCostmap.srv"
   "srv/IsPathValid.srv"
   "srv/ClearCostmapExceptRegion.srv"
@@ -52,8 +56,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SaveMap.srv"
   "srv/SetInitialPose.srv"
   "srv/ReloadDockDatabase.srv"
+  "srv/AddShapes.srv"
+  "srv/RemoveShapes.srv"
+  "srv/GetShapes.srv"
   "srv/SetRouteGraph.srv"
   "srv/DynamicEdges.srv"
+  "srv/Toggle.srv"
   "action/AssistedTeleop.action"
   "action/BackUp.action"
   "action/ComputePathToPose.action"
@@ -72,7 +80,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/UndockRobot.action"
   "action/ComputeRoute.action"
   "action/ComputeAndTrackRoute.action"
-  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs action_msgs nav_msgs geographic_msgs
+  "action/FollowObject.action"
+  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs action_msgs nav_msgs geographic_msgs unique_identifier_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)
