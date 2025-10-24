@@ -17,6 +17,8 @@
 
 #include <QtWidgets>
 #include <QBasicTimer>
+#include <QStateMachine>
+#include <QSignalTransition>
 #undef NO_ERROR
 
 #include <memory>
@@ -112,7 +114,7 @@ private:
 
   // The (non-spinning) client node used to invoke the action client
   rclcpp::Node::SharedPtr client_node_;
-
+  rclcpp::executors::SingleThreadedExecutor::SharedPtr executor_;
   // Timeout value when waiting for action servers to respond
   std::chrono::milliseconds server_timeout_;
 

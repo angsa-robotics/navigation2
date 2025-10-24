@@ -375,6 +375,7 @@ protected:
   void checkPolygon(const std::vector<nav2_collision_monitor::Point> & data);
 
   std::shared_ptr<TestNode> test_node_;
+  rclcpp::executors::SingleThreadedExecutor::SharedPtr executor_;
   std::shared_ptr<ScanWrapper> scan_;
   std::shared_ptr<PointCloudWrapper> pointcloud_;
   std::shared_ptr<RangeWrapper> range_;
@@ -384,6 +385,8 @@ protected:
 Tester::Tester()
 {
   test_node_ = std::make_shared<TestNode>();
+  executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
+  executor_->add_node(test_node_->get_node_base_interface());
 
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(test_node_->get_clock());
   tf_buffer_->setUsingDedicatedThread(true);  // One-thread broadcasting-listening model
@@ -407,8 +410,6 @@ void Tester::createSources(const bool base_shift_correction)
   // Create Scan object
   test_node_->declare_parameter(
     std::string(SCAN_NAME) + ".topic", rclcpp::ParameterValue(SCAN_TOPIC));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(SCAN_NAME) + ".topic", SCAN_TOPIC));
 
   scan_ = std::make_shared<ScanWrapper>(
     test_node_, SCAN_NAME, tf_buffer_,
@@ -419,16 +420,10 @@ void Tester::createSources(const bool base_shift_correction)
   // Create PointCloud object
   test_node_->declare_parameter(
     std::string(POINTCLOUD_NAME) + ".topic", rclcpp::ParameterValue(POINTCLOUD_TOPIC));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(POINTCLOUD_NAME) + ".topic", POINTCLOUD_TOPIC));
   test_node_->declare_parameter(
     std::string(POINTCLOUD_NAME) + ".min_height", rclcpp::ParameterValue(0.1));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(POINTCLOUD_NAME) + ".min_height", 0.1));
   test_node_->declare_parameter(
     std::string(POINTCLOUD_NAME) + ".max_height", rclcpp::ParameterValue(1.0));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(POINTCLOUD_NAME) + ".max_height", 1.0));
 
   pointcloud_ = std::make_shared<PointCloudWrapper>(
     test_node_, POINTCLOUD_NAME, tf_buffer_,
@@ -439,8 +434,6 @@ void Tester::createSources(const bool base_shift_correction)
   // Create Range object
   test_node_->declare_parameter(
     std::string(RANGE_NAME) + ".topic", rclcpp::ParameterValue(RANGE_TOPIC));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(RANGE_NAME) + ".topic", RANGE_TOPIC));
 
   test_node_->declare_parameter(
     std::string(RANGE_NAME) + ".obstacles_angle", rclcpp::ParameterValue(M_PI / 199));
@@ -454,8 +447,6 @@ void Tester::createSources(const bool base_shift_correction)
   // Create Polygon object
   test_node_->declare_parameter(
     std::string(POLYGON_NAME) + ".topic", rclcpp::ParameterValue(POLYGON_TOPIC));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(POLYGON_NAME) + ".topic", POLYGON_TOPIC));
 
   test_node_->declare_parameter(
     std::string(POLYGON_NAME) + ".sampling_distance", rclcpp::ParameterValue(0.1));
@@ -506,7 +497,7 @@ bool Tester::waitScan(const std::chrono::nanoseconds & timeout)
     if (scan_->dataReceived()) {
       return true;
     }
-    rclcpp::spin_some(test_node_->get_node_base_interface());
+    executor_->spin_some();
     std::this_thread::sleep_for(10ms);
   }
   return false;
@@ -519,7 +510,7 @@ bool Tester::waitPointCloud(const std::chrono::nanoseconds & timeout)
     if (pointcloud_->dataReceived()) {
       return true;
     }
-    rclcpp::spin_some(test_node_->get_node_base_interface());
+    executor_->spin_some();
     std::this_thread::sleep_for(10ms);
   }
   return false;
@@ -532,7 +523,7 @@ bool Tester::waitRange(const std::chrono::nanoseconds & timeout)
     if (range_->dataReceived()) {
       return true;
     }
-    rclcpp::spin_some(test_node_->get_node_base_interface());
+    executor_->spin_some();
     std::this_thread::sleep_for(10ms);
   }
   return false;
@@ -545,7 +536,7 @@ bool Tester::waitPolygon(const std::chrono::nanoseconds & timeout)
     if (polygon_->dataReceived()) {
       return true;
     }
-    rclcpp::spin_some(test_node_->get_node_base_interface());
+    executor_->spin_some();
     std::this_thread::sleep_for(10ms);
   }
   return false;
@@ -804,20 +795,12 @@ TEST_F(Tester, testPointCloudMinRange)
   // Create PointCloud object with min_range = 0.2
   test_node_->declare_parameter(
     std::string(POINTCLOUD_NAME) + ".topic", rclcpp::ParameterValue(POINTCLOUD_TOPIC));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(POINTCLOUD_NAME) + ".topic", POINTCLOUD_TOPIC));
   test_node_->declare_parameter(
     std::string(POINTCLOUD_NAME) + ".min_height", rclcpp::ParameterValue(0.1));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(POINTCLOUD_NAME) + ".min_height", 0.1));
   test_node_->declare_parameter(
     std::string(POINTCLOUD_NAME) + ".max_height", rclcpp::ParameterValue(1.0));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(POINTCLOUD_NAME) + ".max_height", 1.0));
   test_node_->declare_parameter(
     std::string(POINTCLOUD_NAME) + ".min_range", rclcpp::ParameterValue(0.16));
-  test_node_->set_parameter(
-    rclcpp::Parameter(std::string(POINTCLOUD_NAME) + ".min_range", 0.16));
 
   pointcloud_ = std::make_shared<PointCloudWrapper>(
     test_node_, POINTCLOUD_NAME, tf_buffer_,
