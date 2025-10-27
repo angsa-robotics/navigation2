@@ -150,10 +150,12 @@ TEST(TrajectoryVisualizerTests, VisCandidateTrajectories)
   candidate_trajectories.y = Eigen::ArrayXXf::Ones(200, 12);
   candidate_trajectories.yaws = Eigen::ArrayXXf::Ones(200, 12);
 
+  Eigen::ArrayXf costs = Eigen::ArrayXf::Random(200);
+
   TrajectoryVisualizer vis;
   vis.on_configure(node, "my_name", "fkmap", parameters_handler.get());
   vis.on_activate();
-  vis.add(candidate_trajectories, "Candidate Trajectories", cmd_stamp);
+  vis.add(candidate_trajectories, costs, {}, cmd_stamp);
   nav_msgs::msg::Path bogus_path;
   vis.visualize(bogus_path);
 
