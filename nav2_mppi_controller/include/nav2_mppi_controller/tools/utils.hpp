@@ -302,6 +302,15 @@ inline size_t findPathFurthestReachedPoint(const CriticData & data)
   size_t n_rows = dists.rows();
   size_t n_cols = dists.cols();
   for (size_t i = 0; i != n_rows; i++) {
+    // Skip trajectories in collision
+    bool in_collision = data.trajectories_in_collision && 
+                        i < data.trajectories_in_collision->size() && 
+                        (*data.trajectories_in_collision)[i];
+    
+    if (in_collision) {
+      continue;
+    }
+    
     min_id_by_path = 0;
     min_distance_by_path = std::numeric_limits<float>::max();
     for (size_t j = max_id_by_trajectories; j != n_cols; j++) {

@@ -50,6 +50,7 @@ struct CriticData
   float & model_dt;
 
   bool fail_flag;
+  std::optional<std::vector<bool>> trajectories_in_collision;
   nav2_core::GoalChecker * goal_checker;
   std::shared_ptr<MotionModel> motion_model;
   std::optional<std::vector<bool>> path_pts_valid;

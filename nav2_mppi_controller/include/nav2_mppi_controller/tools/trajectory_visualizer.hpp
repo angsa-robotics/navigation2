@@ -89,12 +89,14 @@ public:
     * @param total_costs Total cost array for each trajectory
     * @param individual_critics_cost Optional vector of (critic_name, cost_array) pairs for per-critic visualization
     * @param cmd_stamp Timestamp for the markers
+    * @param trajectories_in_collision Optional collision flags for each trajectory
     */
   void add(
     const models::Trajectories & trajectories,
     const Eigen::ArrayXf & total_costs,
     const std::vector<std::pair<std::string, Eigen::ArrayXf>> & individual_critics_cost = {},
-    const builtin_interfaces::msg::Time & cmd_stamp = builtin_interfaces::msg::Time());
+    const builtin_interfaces::msg::Time & cmd_stamp = builtin_interfaces::msg::Time(),
+    const std::optional<std::vector<bool>> & trajectories_in_collision = std::nullopt);
 
   /**
     * @brief Visualize all trajectory data in one call
@@ -107,6 +109,7 @@ public:
     * @param candidate_trajectories Generated candidate trajectories
     * @param costs Total costs for each trajectory
     * @param critic_costs Per-critic costs for each trajectory
+    * @param trajectories_in_collision Optional collision flags for each trajectory
     */
   void visualize(
     nav_msgs::msg::Path plan,
@@ -117,7 +120,8 @@ public:
     std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
     const models::Trajectories & candidate_trajectories,
     const Eigen::ArrayXf & costs,
-    const std::vector<std::pair<std::string, Eigen::ArrayXf>> & critic_costs);
+    const std::vector<std::pair<std::string, Eigen::ArrayXf>> & critic_costs,
+    const std::optional<std::vector<bool>> & trajectories_in_collision = std::nullopt);
 
   /**
     * @brief Visualize without optimizer (for testing)
@@ -137,12 +141,14 @@ protected:
     * @param costs Cost array for each trajectory
     * @param ns Namespace for the markers
     * @param cmd_stamp Timestamp for the markers
+    * @param trajectories_in_collision Optional collision flags for each trajectory
     */
   void createTrajectoryMarkers(
     const models::Trajectories & trajectories,
     const Eigen::ArrayXf & costs,
     const std::string & ns,
-    const builtin_interfaces::msg::Time & cmd_stamp);
+    const builtin_interfaces::msg::Time & cmd_stamp,
+    const std::optional<std::vector<bool>> & trajectories_in_collision = std::nullopt);
 
   /**
     * @brief Create footprint markers from trajectory

@@ -161,6 +161,11 @@ void CostCritic::score(CriticData & data)
   int strided_traj_rows = data.trajectories.x.rows();
   int outer_stride = strided_traj_rows * trajectory_point_step_;
 
+  // Initialize trajectories collision tracking
+  if (!data.trajectories_in_collision) {
+    data.trajectories_in_collision = std::vector<bool>(strided_traj_rows, false);
+  }
+
   const auto traj_x = Eigen::Map<const Eigen::ArrayXXf, 0,
       Eigen::Stride<-1, -1>>(data.trajectories.x.data(), strided_traj_rows, strided_traj_cols,
       Eigen::Stride<-1, -1>(outer_stride, 1));
@@ -209,6 +214,7 @@ void CostCritic::score(CriticData & data)
       }
     }
 
+    (*data.trajectories_in_collision)[i] = trajectory_collide;
     all_trajectories_collide &= trajectory_collide;
   }
 

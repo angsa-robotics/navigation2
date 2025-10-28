@@ -111,7 +111,8 @@ geometry_msgs::msg::TwistStamped MPPIController::computeVelocityCommands(
     costmap_ros_,
     optimizer_.getGeneratedTrajectories(),
     optimizer_.getCosts(),
-    optimizer_.getCriticCosts());
+    optimizer_.getCriticCosts(),
+    optimizer_.getTrajectoriesInCollision());
 
   return cmd;
 }

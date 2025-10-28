@@ -157,7 +157,8 @@ void TrajectoryVisualizer::add(
   const models::Trajectories & trajectories,
   const Eigen::ArrayXf & total_costs,
   const std::vector<std::pair<std::string, Eigen::ArrayXf>> & individual_critics_cost,
-  const builtin_interfaces::msg::Time & cmd_stamp)
+  const builtin_interfaces::msg::Time & cmd_stamp,
+  const std::optional<std::vector<bool>> & trajectories_in_collision)
 {
   // Check if we should visualize per-critic costs
   bool visualize_per_critic = !individual_critics_cost.empty() &&
@@ -169,13 +170,13 @@ void TrajectoryVisualizer::add(
 
   // Visualize total costs if requested
   if (publish_trajectories_with_total_cost_) {
-    createTrajectoryMarkers(trajectories, total_costs, "Total Costs", cmd_stamp);
+    createTrajectoryMarkers(trajectories, total_costs, "Total Costs", cmd_stamp, trajectories_in_collision);
   }
 
   // Visualize each critic's contribution if requested
   if (visualize_per_critic) {
     for (const auto & [critic_name, costs] : individual_critics_cost) {
-      createTrajectoryMarkers(trajectories, costs, critic_name, cmd_stamp);
+      createTrajectoryMarkers(trajectories, costs, critic_name, cmd_stamp, trajectories_in_collision);
     }
   }
 }
@@ -184,18 +185,26 @@ void TrajectoryVisualizer::createTrajectoryMarkers(
   const models::Trajectories & trajectories,
   const Eigen::ArrayXf & costs,
   const std::string & ns,
-  const builtin_interfaces::msg::Time & cmd_stamp)
+  const builtin_interfaces::msg::Time & cmd_stamp,
+  const std::optional<std::vector<bool>> & trajectories_in_collision)
 {
   size_t n_rows = trajectories.x.rows();
   size_t n_cols = trajectories.x.cols();
 
-  // Find min/max cost for normalization
+  // Find min/max cost for normalization, excluding trajectories in collision
   float min_cost = std::numeric_limits<float>::max();
   float max_cost = std::numeric_limits<float>::lowest();
 
   for (Eigen::Index i = 0; i < costs.size(); ++i) {
-    min_cost = std::min(min_cost, costs(i));
-    max_cost = std::max(max_cost, costs(i));
+    // Skip trajectories in collision when computing min/max for normalization
+    bool in_collision = trajectories_in_collision && 
+                        i < static_cast<Eigen::Index>(trajectories_in_collision->size()) && 
+                        (*trajectories_in_collision)[i];
+    
+    if (!in_collision) {
+      min_cost = std::min(min_cost, costs(i));
+      max_cost = std::max(max_cost, costs(i));
+    }
   }
 
   float cost_range = max_cost - min_cost;
@@ -208,29 +217,41 @@ void TrajectoryVisualizer::createTrajectoryMarkers(
   for (size_t i = 0; i < n_rows; i += trajectory_step_) {
     float red_component, green_component, blue_component;
 
-    // Check if cost is zero (no contribution from this critic)
-    bool zero_cost = std::abs(costs(i)) < 1e-6f;
+    // Check if trajectory is in collision
+    bool in_collision = trajectories_in_collision && 
+                        i < trajectories_in_collision->size() && 
+                        (*trajectories_in_collision)[i];
 
-    if (zero_cost) {
-      // Gray color for zero cost (no contribution)
-      red_component = 0.5f;
-      green_component = 0.5f;
-      blue_component = 0.5f;
+    if (in_collision) {
+      // Fuschia color for trajectories in collision (magenta/pink)
+      red_component = 1.0f;
+      green_component = 0.0f;
+      blue_component = 1.0f;
     } else {
-      // Normal gradient for trajectories
-      float normalized_cost = (costs(i) - min_cost) / cost_range;
-      normalized_cost = std::clamp(normalized_cost, 0.0f, 1.0f);
+      // Check if cost is zero (no contribution from this critic)
+      bool zero_cost = std::abs(costs(i)) < 1e-6f;
 
-      // Color scheme: Green (low cost) -> Yellow -> Red (high cost)
-      blue_component = 0.0f;
-      if (normalized_cost < 0.5f) {
-        // Green to Yellow (0.0 - 0.5)
-        red_component = normalized_cost * 2.0f;
-        green_component = 1.0f;
+      if (zero_cost) {
+        // Gray color for zero cost (no contribution)
+        red_component = 0.5f;
+        green_component = 0.5f;
+        blue_component = 0.5f;
       } else {
-        // Yellow to Red (0.5 - 1.0)
-        red_component = 1.0f;
-        green_component = 2.0f * (1.0f - normalized_cost);
+        // Normal gradient for trajectories
+        float normalized_cost = (costs(i) - min_cost) / cost_range;
+        normalized_cost = std::clamp(normalized_cost, 0.0f, 1.0f);
+
+        // Color scheme: Green (low cost) -> Yellow -> Red (high cost)
+        blue_component = 0.0f;
+        if (normalized_cost < 0.5f) {
+          // Green to Yellow (0.0 - 0.5)
+          red_component = normalized_cost * 2.0f;
+          green_component = 1.0f;
+        } else {
+          // Yellow to Red (0.5 - 1.0)
+          red_component = 1.0f;
+          green_component = 2.0f * (1.0f - normalized_cost);
+        }
       }
     }
 
@@ -278,7 +299,8 @@ void TrajectoryVisualizer::visualize(
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
   const models::Trajectories & candidate_trajectories,
   const Eigen::ArrayXf & costs,
-  const std::vector<std::pair<std::string, Eigen::ArrayXf>> & critic_costs)
+  const std::vector<std::pair<std::string, Eigen::ArrayXf>> & critic_costs,
+  const std::optional<std::vector<bool>> & trajectories_in_collision)
 {
   // Create header with frame from costmap
   std_msgs::msg::Header header;
@@ -289,12 +311,12 @@ void TrajectoryVisualizer::visualize(
   if (publish_trajectories_with_total_cost_ ||
     (!publish_trajectories_with_individual_cost_ || critic_costs.empty()))
   {
-    add(candidate_trajectories, costs, {}, stamp);
+    add(candidate_trajectories, costs, {}, stamp, trajectories_in_collision);
   }
 
   // Visualize trajectories with individual critic costs
   if (publish_trajectories_with_individual_cost_ && !critic_costs.empty()) {
-    add(candidate_trajectories, costs, critic_costs, stamp);
+    add(candidate_trajectories, costs, critic_costs, stamp, trajectories_in_collision);
   }
 
   // Add optimal trajectory to populate optimal_path_
