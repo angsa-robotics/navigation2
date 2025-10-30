@@ -74,7 +74,7 @@ protected:
       case (nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE):
         return consider_footprint_ ? false : true;
       case (nav2_costmap_2d::NO_INFORMATION):
-        return is_tracking_unknown_ ? false : true;
+        return false;
     }
 
     return false;

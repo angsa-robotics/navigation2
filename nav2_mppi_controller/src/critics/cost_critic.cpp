@@ -190,7 +190,7 @@ void CostCritic::score(CriticData & data)
       // The footprintCostAtPose will always return "INSCRIBED" if footprint is over it
       // So the center point has more information than the footprint
       if (!worldToMapFloat(Tx, Ty, x_i, y_i)) {
-        pose_cost = 255.0f;  // NO_INFORMATION in float
+        pose_cost = 0.0f;  // NO_INFORMATION in float
       } else {
         pose_cost = static_cast<float>(costmap->getCost(getIndex(x_i, y_i)));
         if (pose_cost < 1.0f) {
