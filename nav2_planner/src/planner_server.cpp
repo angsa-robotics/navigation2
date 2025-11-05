@@ -29,6 +29,7 @@
 #include "nav2_ros_common/node_utils.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "nav2_costmap_2d/cost_values.hpp"
+#include "tf2/utils.h"
 
 #include "nav2_planner/planner_server.hpp"
 
@@ -436,10 +437,27 @@ void PlannerServer::computePlanThroughPoses()
           break;
         }
       } catch (nav2_core::StartOccupied & ex) {
-        RCLCPP_WARN(
-          get_logger(),
-            "Error START_OCCUPIED but probably 2 goals are just too close to each other.");
-        continue;
+        // Check if start and goal are very close to each other
+        double distance = nav2_util::geometry_utils::euclidean_distance(
+          curr_start.pose.position, curr_goal.pose.position);
+        double yaw1 = tf2::getYaw(curr_start.pose.orientation);
+        double yaw2 = tf2::getYaw(curr_goal.pose.orientation);
+        double angle_diff = std::abs(yaw1 - yaw2);
+        while (angle_diff > M_PI) {
+          angle_diff -= 2.0 * M_PI;
+        }
+        angle_diff = std::abs(angle_diff);
+        
+        if (distance < 0.05 && angle_diff < 0.05) {
+          RCLCPP_WARN(
+            get_logger(),
+            "Start occupied for goal %d, but start and goal poses are very close "
+            "(dist: %.3fm, angle: %.3frad). Ignoring and continuing.", i, distance, angle_diff);
+          continue;
+        } else {
+          // Poses are not close, throw the error
+          throw ex;
+        }
       }
 
       if (!validatePath<ActionThroughPoses>(curr_goal, curr_path, goal->planner_id)) {
