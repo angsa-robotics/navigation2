@@ -313,14 +313,26 @@ inline size_t findPathFurthestReachedPoint(const CriticData & data)
     
     min_id_by_path = 0;
     min_distance_by_path = std::numeric_limits<float>::max();
-    for (size_t j = max_id_by_trajectories; j != n_cols; j++) {
+    
+    // Search all path points to find the true closest point
+    for (size_t j = 0; j != n_cols; j++) {
       const float cur_dist = dists(i, j);
       if (cur_dist < min_distance_by_path) {
         min_distance_by_path = cur_dist;
         min_id_by_path = j;
+        
+        // If we've found the last path point as closest, can't do better for this trajectory
+        if (min_id_by_path >= static_cast<int>(n_cols - 1)) {
+          break;
+        }
       }
     }
     max_id_by_trajectories = std::max(max_id_by_trajectories, min_id_by_path);
+    
+    // Early exit: if we've reached the last path point, we can't do better
+    if (max_id_by_trajectories >= static_cast<int>(n_cols - 1)) {
+      break;
+    }
   }
   return max_id_by_trajectories;
 }
