@@ -169,13 +169,15 @@ void TrajectoryVisualizer::add(
 
   // Visualize total costs if requested
   if (publish_trajectories_with_total_cost_) {
-    createTrajectoryMarkers(trajectories, total_costs, "Total Costs", cmd_stamp, trajectories_in_collision);
+    createTrajectoryMarkers(trajectories, total_costs, "Total Costs", cmd_stamp,
+        trajectories_in_collision);
   }
 
   // Visualize each critic's contribution if requested
   if (visualize_per_critic) {
     for (const auto & [critic_name, costs] : individual_critics_cost) {
-      createTrajectoryMarkers(trajectories, costs, critic_name, cmd_stamp, trajectories_in_collision);
+      createTrajectoryMarkers(trajectories, costs, critic_name, cmd_stamp,
+          trajectories_in_collision);
     }
   }
 }
@@ -196,10 +198,10 @@ void TrajectoryVisualizer::createTrajectoryMarkers(
 
   for (Eigen::Index i = 0; i < costs.size(); ++i) {
     // Skip trajectories in collision when computing min/max for normalization
-    bool in_collision = trajectories_in_collision && 
-                        i < static_cast<Eigen::Index>(trajectories_in_collision->size()) && 
-                        (*trajectories_in_collision)[i];
-    
+    bool in_collision = trajectories_in_collision &&
+      i < static_cast<Eigen::Index>(trajectories_in_collision->size()) &&
+      (*trajectories_in_collision)[i];
+
     if (!in_collision) {
       min_cost = std::min(min_cost, costs(i));
       max_cost = std::max(max_cost, costs(i));
@@ -217,9 +219,9 @@ void TrajectoryVisualizer::createTrajectoryMarkers(
     float red_component, green_component, blue_component;
 
     // Check if trajectory is in collision
-    bool in_collision = trajectories_in_collision && 
-                        i < trajectories_in_collision->size() && 
-                        (*trajectories_in_collision)[i];
+    bool in_collision = trajectories_in_collision &&
+      i < trajectories_in_collision->size() &&
+      (*trajectories_in_collision)[i];
 
     if (in_collision) {
       // Fuschia color for trajectories in collision (magenta/pink)

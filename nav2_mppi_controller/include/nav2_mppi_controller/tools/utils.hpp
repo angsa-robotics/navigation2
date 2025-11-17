@@ -303,24 +303,24 @@ inline size_t findPathFurthestReachedPoint(const CriticData & data)
   size_t n_cols = dists.cols();
   for (size_t i = 0; i != n_rows; i++) {
     // Skip trajectories in collision
-    bool in_collision = data.trajectories_in_collision && 
-                        i < data.trajectories_in_collision->size() && 
-                        (*data.trajectories_in_collision)[i];
-    
+    bool in_collision = data.trajectories_in_collision &&
+      i < data.trajectories_in_collision->size() &&
+      (*data.trajectories_in_collision)[i];
+
     if (in_collision) {
       continue;
     }
-    
+
     min_id_by_path = 0;
     min_distance_by_path = std::numeric_limits<float>::max();
-    
+
     // Search all path points to find the true closest point
     for (size_t j = 0; j != n_cols; j++) {
       const float cur_dist = dists(i, j);
       if (cur_dist < min_distance_by_path) {
         min_distance_by_path = cur_dist;
         min_id_by_path = j;
-        
+
         // If we've found the last path point as closest, can't do better for this trajectory
         if (min_id_by_path >= static_cast<int>(n_cols - 1)) {
           break;
@@ -328,7 +328,7 @@ inline size_t findPathFurthestReachedPoint(const CriticData & data)
       }
     }
     max_id_by_trajectories = std::max(max_id_by_trajectories, min_id_by_path);
-    
+
     // Early exit: if we've reached the last path point, we can't do better
     if (max_id_by_trajectories >= static_cast<int>(n_cols - 1)) {
       break;

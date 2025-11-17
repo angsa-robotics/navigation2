@@ -181,7 +181,8 @@ TEST(UtilsTests, FurthestAndClosestReachedPoint)
   float model_dt = 0.1;
 
   CriticData data =
-  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt, nullptr,
+  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt,
+    nullptr,
     nullptr,
     std::nullopt, std::nullopt};  /// Caution, keep references
 
@@ -192,7 +193,8 @@ TEST(UtilsTests, FurthestAndClosestReachedPoint)
 
   // Attempt to set if not set already with no other information, should fail
   CriticData data2 =
-  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt, nullptr,
+  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt,
+    nullptr,
     nullptr,
     std::nullopt, std::nullopt};  /// Caution, keep references
   setPathFurthestPointIfNotSet(data2);
@@ -212,7 +214,8 @@ TEST(UtilsTests, FurthestAndClosestReachedPoint)
   path = toTensor(plan);
 
   CriticData data3 =
-  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt, nullptr,
+  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt,
+    nullptr,
     nullptr,
     std::nullopt, std::nullopt};  /// Caution, keep references
   EXPECT_EQ(findPathFurthestReachedPoint(data3), 5);
@@ -229,7 +232,8 @@ TEST(UtilsTests, findPathCosts)
   float model_dt = 0.1;
 
   CriticData data =
-  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt, nullptr,
+  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt,
+    nullptr,
     nullptr,
     std::nullopt, std::nullopt};  /// Caution, keep references
 
@@ -243,7 +247,8 @@ TEST(UtilsTests, findPathCosts)
   EXPECT_EQ(data.path_pts_valid->size(), 10u);
 
   CriticData data3 =
-  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt, nullptr,
+  {state, generated_trajectories, path, goal, costs, std::nullopt, model_dt, false, std::nullopt,
+    nullptr,
     nullptr,
     std::nullopt, std::nullopt};  /// Caution, keep references
 
