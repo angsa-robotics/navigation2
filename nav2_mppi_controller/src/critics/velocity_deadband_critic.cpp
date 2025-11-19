@@ -23,6 +23,7 @@ void VelocityDeadbandCritic::initialize()
 
   getParam(power_, "cost_power", 1);
   getParam(weight_, "cost_weight", 35.0);
+  getParam(threshold_to_consider_, "threshold_to_consider", 0.0f);
 
   // Recast double to float
   std::vector<double> deadband_velocities{0.0, 0.0, 0.0};
@@ -33,14 +34,15 @@ void VelocityDeadbandCritic::initialize()
 
   RCLCPP_INFO_STREAM(
     logger_, "VelocityDeadbandCritic instantiated with "
-      << power_ << " power, " << weight_ << " weight, deadband_velocity ["
+      << power_ << " power, " << weight_ << " weight, "
+      << threshold_to_consider_ << " threshold_to_consider, deadband_velocity ["
       << deadband_velocities_.at(0) << "," << deadband_velocities_.at(1) << ","
       << deadband_velocities_.at(2) << "]");
 }
 
 void VelocityDeadbandCritic::score(CriticData & data)
 {
-  if (!enabled_) {
+  if (!enabled_ || data.state.local_path_length < threshold_to_consider_) {
     return;
   }
 
